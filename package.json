@@ -1,0 +1,30 @@
+{
+  "name": "com.yandex.games",
+  "version": "1.0.0",
+  "displayName": "Yandex Games",
+  "description": "Unity plugin for Yandex Games integration with minimal usage pattern. Provides auto-initialization, player data retrieval, cloud storage, and advertisement functionality.",
+  "unity": "2022.3",
+  "unityRelease": "0f1",
+  "keywords": [
+    "yandex",
+    "games",
+    "webgl",
+    "ads",
+    "cloud",
+    "player"
+  ],
+  "author": {
+    "name": "Yandex Games",
+    "email": "developer@yandex.com"
+  },
+  "dependencies": {
+    "com.cysharp.unitask": "2.3.3"
+  },
+  "samples": [
+    {
+      "displayName": "Basic Usage",
+      "description": "Demonstrates minimal usage pattern for Yandex Games integration",
+      "path": "Samples~/BasicUsage"
+    }
+  ]
+}
