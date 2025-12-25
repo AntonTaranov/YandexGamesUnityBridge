@@ -3,6 +3,7 @@ var YandexGamesPlugin = {
     YandexGamesInitialize: function() {
         if (typeof YaGames === 'undefined') {
             console.error('Yandex Games SDK not found. Make sure to include YaGames script in your HTML.');
+            SendMessage('YandexGamesCallbackReceiver', 'OnInitializeError', 'Yandex Games SDK not found');
             return;
         }
         
@@ -11,8 +12,10 @@ var YandexGamesPlugin = {
                 window.ysdk = ysdk;
                 window.yandexGamesInitialized = true;
                 console.log('Yandex Games SDK initialized successfully');
+                SendMessage('YandexGamesCallbackReceiver', 'OnInitialized', '');
             }).catch(err => {
                 console.error('Failed to initialize Yandex Games SDK:', err);
+                SendMessage('YandexGamesCallbackReceiver', 'OnInitializeError', err.message || 'Unknown error');
             });
         }
     },

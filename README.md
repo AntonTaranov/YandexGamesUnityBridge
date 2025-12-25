@@ -117,16 +117,33 @@ public class PlayerData
 The plugin uses a clean architecture with JavaScript-C# communication:
 
 1. **Static API**: The main `YandexGames.YandexGames` static class provides all functionality
-2. **Auto-initialization**: Plugin automatically initializes when the game starts
+2. **Auto-initialization**: Plugin automatically initializes when the game starts using `RuntimeInitializeOnLoadMethod`
 3. **Callback Receiver**: A hidden GameObject (`YandexGamesCallbackReceiver`) handles JavaScript-to-C# callbacks
 4. **JavaScript Bridge**: `.jslib` files handle Unity WebGL communication with Yandex Games SDK
 5. **Async Pattern**: All operations use UniTask for high-performance async operations
 
+### Initialization Behavior
+
+**WebGL Builds**: Initialization is asynchronous. The plugin waits for the Yandex Games SDK JavaScript library to load and confirm successful initialization before setting the `IsInitialized` flag to `true`. This prevents race conditions where API calls might be made before the SDK is ready.
+
+```csharp
+// Recommended pattern: Wait for initialization before calling APIs
+await UniTask.WaitUntil(() => YandexGames.YandexGames.IsInitialized);
+
+// Now safe to call any Yandex API methods
+var playerData = await YandexGames.YandexGames.GetPlayerDataAsync();
+```
+
+**Unity Editor**: Initialization is immediate (synchronous) to enable development and testing without WebGL builds. Mock implementations are used for all API calls.
+
+**Timeout**: If the JavaScript SDK doesn't respond within 10 seconds, an error will be logged and `IsInitialized` will remain `false`.
+
 The messaging flow:
 - C# calls JavaScript functions via `DllImport`
-- JavaScript calls Yandex Games SDK
-- JavaScript uses `SendMessage` to call back to C# via the callback receiver GameObject
-- Callback receiver forwards calls to the static class methods
+- JavaScript calls Yandex Games SDK (asynchronous Promise-based API)
+- When SDK initialization completes, JavaScript uses `SendMessage` to call back to C# via the callback receiver GameObject
+- Callback receiver forwards calls to the static class methods, which set the `IsInitialized` flag
+- This ensures `IsInitialized` accurately reflects actual SDK readiness state
 
 ## Requirements
 

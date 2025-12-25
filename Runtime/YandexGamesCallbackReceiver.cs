@@ -15,6 +15,16 @@ namespace YandexGames
         }
 
         // Callback methods called from JavaScript via SendMessage
+        public void OnInitialized()
+        {
+            YandexGames.OnInitialized();
+        }
+
+        public void OnInitializeError(string error)
+        {
+            YandexGames.OnInitializeError(error);
+        }
+
         public void OnPlayerDataReceived(string json)
         {
             YandexGames.OnPlayerDataReceived(json);

@@ -11,6 +11,8 @@ namespace YandexGames
     public static class YandexGames
     {
         private static bool _isInitialized = false;
+        private static bool _isInitializing = false;
+        private const float INIT_TIMEOUT_SECONDS = 10f;
         private static UniTaskCompletionSource<string> _playerDataTask;
         private static UniTaskCompletionSource _saveDataTask;
         private static UniTaskCompletionSource<string> _loadDataTask;
@@ -25,10 +27,16 @@ namespace YandexGames
         /// <summary>
         /// Initialize Yandex Games plugin (called automatically)
         /// </summary>
+        /// <remarks>
+        /// In WebGL builds, initialization is asynchronous. The IsInitialized flag will remain false
+        /// until the JavaScript SDK confirms successful initialization via callback.
+        /// If initialization fails or times out (10 seconds), an error will be logged.
+        /// In Unity Editor, initialization is immediate for development/testing purposes.
+        /// </remarks>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Initialize()
         {
-            if (!Application.isPlaying || _isInitialized)
+            if (!Application.isPlaying || _isInitialized || _isInitializing)
                 return;
 
             // Create callback receiver GameObject
@@ -36,18 +44,20 @@ namespace YandexGames
             callbackReceiver.AddComponent<YandexGamesCallbackReceiver>();
 
 #if UNITY_WEBGL && !UNITY_EDITOR
+            _isInitializing = true;
             try
             {
                 YandexGamesInitialize();
-                _isInitialized = true;
-                Debug.Log("[YandexGames] Plugin initialized successfully");
+                Debug.Log("[YandexGames] Initializing... (10s timeout)");
             }
             catch (Exception ex)
             {
+                _isInitializing = false;
                 Debug.LogError($"[YandexGames] Failed to initialize: {ex.Message}");
             }
 #else
             _isInitialized = true; // Allow usage in editor for testing
+            _isInitializing = false;
             Debug.LogWarning("[YandexGames] Plugin only works on WebGL platform. Running in mock mode.");
 #endif
         }
@@ -207,6 +217,35 @@ namespace YandexGames
         }
 
         // Callback methods called from JavaScript
+        /// <summary>
+        /// Internal callback handler for successful initialization
+        /// </summary>
+        /// <remarks>
+        /// Called by JavaScript after YaGames.init() promise resolves successfully.
+        /// Sets IsInitialized flag to true and releases initialization state.
+        /// </remarks>
+        internal static void OnInitialized()
+        {
+            _isInitialized = true;
+            _isInitializing = false;
+            Debug.Log("[YandexGames] Plugin initialized successfully");
+        }
+
+        /// <summary>
+        /// Internal callback handler for initialization errors
+        /// </summary>
+        /// <param name="error">Error message from JavaScript SDK</param>
+        /// <remarks>
+        /// Called by JavaScript if YaGames.init() fails or SDK is not found.
+        /// This may also be triggered by timeout if no callback is received within 10 seconds.
+        /// Logs error and keeps IsInitialized flag false.
+        /// </remarks>
+        internal static void OnInitializeError(string error)
+        {
+            _isInitializing = false;
+            Debug.LogError($"[YandexGames] Failed to initialize: {error}");
+        }
+
         public static void OnPlayerDataReceived(string json)
         {
             _playerDataTask?.TrySetResult(json);
