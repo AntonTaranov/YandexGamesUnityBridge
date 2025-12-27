@@ -133,9 +133,11 @@ namespace YandexGames
                 throw new YandexGamesException($"Failed to save data: {ex.Message}", ex);
             }
 #else
-            // Mock delay for testing in editor
+            // Mock mode: save to PlayerPrefs for testing in editor
             await UniTask.Delay(50);
-            Debug.Log($"[YandexGames] Mock save: {key} = {data}");
+            PlayerPrefs.SetString($"YandexGames_{key}", data ?? "");
+            PlayerPrefs.Save();
+            Debug.Log($"[YandexGames] Mock save to PlayerPrefs: {key}");
 #endif
         }
 
@@ -164,10 +166,11 @@ namespace YandexGames
                 throw new YandexGamesException($"Failed to load data: {ex.Message}", ex);
             }
 #else
-            // Mock delay for testing in editor
+            // Mock mode: load from PlayerPrefs for testing in editor
             await UniTask.Delay(50);
-            Debug.Log($"[YandexGames] Mock load: {key}");
-            return null;
+            var value = PlayerPrefs.GetString($"YandexGames_{key}", null);
+            Debug.Log($"[YandexGames] Mock load from PlayerPrefs: {key} = {(value != null ? "found" : "not found")}");
+            return value;
 #endif
         }
 
