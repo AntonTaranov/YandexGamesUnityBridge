@@ -30,6 +30,10 @@ namespace YandexGames
         // Remote Config task completion source
         private static UniTaskCompletionSource<string> _getFlagsTask;
         
+        // Review task completion sources
+        private static UniTaskCompletionSource<string> _canReviewTask;
+        private static UniTaskCompletionSource<string> _requestReviewTask;
+        
         /// <summary>
         /// Gets whether the plugin is initialized and ready to use
         /// </summary>
@@ -520,6 +524,85 @@ namespace YandexGames
 
         #endregion
 
+        #region Review
+
+        /// <summary>
+        /// Check if review request is available for current user
+        /// </summary>
+        /// <returns>Tuple with availability flag and reason if unavailable</returns>
+        public static async UniTask<(bool value, string reason)> CanReviewAsync()
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            if (!_isInitialized)
+                throw new YandexGamesException("Plugin not initialized");
+
+            try
+            {
+                _canReviewTask = new UniTaskCompletionSource<string>();
+                CanReviewAsyncJS();
+                var json = await _canReviewTask.Task;
+                
+                // Parse JSON: {"value":true} or {"value":false,"reason":"NO_AUTH"}
+                var value = json.Contains("\"value\":true");
+                var reason = "";
+                
+                if (!value && json.Contains("\"reason\":"))
+                {
+                    var reasonStart = json.IndexOf("\"reason\":\"") + 10;
+                    var reasonEnd = json.IndexOf("\"", reasonStart);
+                    if (reasonEnd > reasonStart)
+                        reason = json.Substring(reasonStart, reasonEnd - reasonStart);
+                }
+                
+                return (value, reason);
+            }
+            catch (Exception ex)
+            {
+                throw new YandexGamesException($"Failed to check review availability: {ex.Message}", ex);
+            }
+#else
+            await UniTask.Delay(100);
+            Debug.Log("[YandexGames] Mock: Can review = true");
+            return (true, "");
+#endif
+        }
+
+        /// <summary>
+        /// Request user to review the game
+        /// </summary>
+        /// <returns>True if user submitted feedback, false if closed popup</returns>
+        /// <remarks>
+        /// Can only be called once per session. Always use CanReviewAsync() before calling this method.
+        /// </remarks>
+        public static async UniTask<bool> RequestReviewAsync()
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            if (!_isInitialized)
+                throw new YandexGamesException("Plugin not initialized");
+
+            try
+            {
+                _requestReviewTask = new UniTaskCompletionSource<string>();
+                RequestReviewAsyncJS();
+                var json = await _requestReviewTask.Task;
+                
+                // Parse JSON: {"feedbackSent":true} or {"feedbackSent":false}
+                var feedbackSent = json.Contains("\"feedbackSent\":true");
+                return feedbackSent;
+            }
+            catch (Exception ex)
+            {
+                throw new YandexGamesException($"Failed to request review: {ex.Message}", ex);
+            }
+#else
+            await UniTask.Delay(100);
+            Debug.Log("[YandexGames] Mock: Review requested - feedback sent = true");
+            return true;
+#endif
+        }
+
+        #endregion
+
         // Callback methods called from JavaScript
         /// <summary>
         /// Internal callback handler for successful initialization
@@ -653,6 +736,27 @@ namespace YandexGames
             _getFlagsTask?.TrySetException(new YandexGamesException(error));
         }
 
+        // Review callbacks
+        public static void OnCanReviewComplete(string json)
+        {
+            _canReviewTask?.TrySetResult(json);
+        }
+
+        public static void OnCanReviewError(string error)
+        {
+            _canReviewTask?.TrySetException(new YandexGamesException(error));
+        }
+
+        public static void OnRequestReviewComplete(string json)
+        {
+            _requestReviewTask?.TrySetResult(json);
+        }
+
+        public static void OnRequestReviewError(string error)
+        {
+            _requestReviewTask?.TrySetException(new YandexGamesException(error));
+        }
+
         // JavaScript bridge declarations
 #if UNITY_WEBGL && !UNITY_EDITOR
         [DllImport("__Internal")]
@@ -689,6 +793,13 @@ namespace YandexGames
         // Remote Config bridge declarations
         [DllImport("__Internal")]
         private static extern void GetFlagsAsyncJS(string optionsJson);
+
+        // Review bridge declarations
+        [DllImport("__Internal")]
+        private static extern void CanReviewAsyncJS();
+
+        [DllImport("__Internal")]
+        private static extern void RequestReviewAsyncJS();
 #endif
     }
 }

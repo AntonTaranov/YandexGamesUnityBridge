@@ -8,9 +8,12 @@ A Unity plugin for Yandex Games integration with minimal usage pattern. Provides
 - **Player Data**: Get player information (name, avatar, language, device type)
 - **Cloud Storage**: Save and load game data to Yandex Games cloud
 - **Advertisements**: Show interstitial and rewarded video ads
+- **Leaderboards**: Submit scores, retrieve rankings, and display player positions
+- **Remote Configuration**: Feature flags and A/B testing support
+- **Game Review**: Request player feedback and ratings
 - **UniTask Integration**: All async operations use UniTask for better performance
 - **WebGL Support**: Designed specifically for Unity WebGL builds
-- **Editor Testing**: Mock implementations for testing in Unity Editor
+- **Editor Testing**: Mock implementations with PlayerPrefs storage for testing in Unity Editor
 
 ## Installation
 
@@ -82,22 +85,121 @@ public class GameManager : MonoBehaviour
 
 - `YandexGames.YandexGames.IsInitialized` - Check if plugin is ready
 - `YandexGames.YandexGames.GetPlayerDataAsync()` - Get player information
-- `YandexGames.YandexGames.SaveDataAsync(key, data)` - Save data to cloud storage
-- `YandexGames.YandexGames.LoadDataAsync(key)` - Load data from cloud storage
+- `YandexGames.YandexGames.SaveDataAsync(key, data)` - Save data to cloud storage (uses PlayerPrefs in Editor)
+- `YandexGames.YandexGames.LoadDataAsync(key)` - Load data from cloud storage (uses PlayerPrefs in Editor)
 - `YandexGames.YandexGames.ShowInterstitialAdAsync()` - Show interstitial advertisement
 - `YandexGames.YandexGames.ShowRewardedAdAsync(callback)` - Show rewarded video advertisement
+
+### Leaderboards
+
+- `SetLeaderboardScoreAsync(leaderboardName, score, extraData)` - Submit player score
+- `GetLeaderboardDescriptionAsync(leaderboardName)` - Get leaderboard metadata (title, format, sort order)
+- `GetLeaderboardPlayerEntryAsync(leaderboardName)` - Get current player's rank and score
+- `GetLeaderboardEntriesAsync(leaderboardName, includeUser, quantityAround, quantityTop)` - Get leaderboard entries
+
+**Example:**
+```csharp
+// Submit score
+await YandexGames.SetLeaderboardScoreAsync("MyLeaderboard", 1000);
+
+// Get top 10 with current player
+var response = await YandexGames.GetLeaderboardEntriesAsync(
+    "MyLeaderboard", 
+    includeUser: true, 
+    quantityTop: 10
+);
+
+foreach (var entry in response.entries)
+{
+    Debug.Log($"#{entry.rank + 1}: {entry.player.publicName} - {entry.formattedScore}");
+}
+```
+
+### Remote Configuration
+
+- `GetFlagsAsync(defaultFlags, clientFeatures)` - Get feature flags for A/B testing and remote config
+
+**Example:**
+```csharp
+var defaults = new Dictionary<string, string>
+{
+    { "newFeature", "false" },
+    { "difficulty", "normal" }
+};
+
+var flags = await YandexGames.GetFlagsAsync(defaults);
+if (flags["newFeature"] == "true")
+{
+    // Enable new feature
+}
+```
+
+### Game Review
+
+- `CanReviewAsync()` - Check if review request is available
+- `RequestReviewAsync()` - Request user to review the game (once per session)
+
+**Example:**
+```csharp
+var (canReview, reason) = await YandexGames.CanReviewAsync();
+if (canReview)
+{
+    var feedbackSent = await YandexGames.RequestReviewAsync();
+    Debug.Log($"User submitted feedback: {feedbackSent}");
+}
+else
+{
+    Debug.Log($"Cannot review: {reason}"); // NO_AUTH, GAME_RATED, etc.
+}
+```
 
 **Note**: The static class `YandexGames` is inside the `YandexGames` namespace, so you need to use `YandexGames.YandexGames` to access the methods.
 
 ### Data Types
 
 ```csharp
+// Player data
 public class PlayerData
 {
     public string name;    // Player's display name
     public string avatar;  // Avatar URL
     public string lang;    // Language code (e.g., "en", "ru")
     public string device;  // Device type: "desktop", "mobile", "tablet"
+}
+
+// Leaderboard entry
+public class LeaderboardEntry
+{
+    public int score;              // Raw score value
+    public int rank;               // 0-based rank (0 = 1st place)
+    public string formattedScore;  // Formatted with decimal offset
+    public string extraData;       // Custom metadata
+    public LeaderboardPlayer player;
+}
+
+// Leaderboard player info
+public class LeaderboardPlayer
+{
+    public string uniqueID;
+    public string publicName;      // "User Hidden" if privacy restricted
+    public string lang;
+    public ScopePermissions scopePermissions;
+}
+
+// Leaderboard description
+public class LeaderboardDescription
+{
+    public string name;            // Technical name
+    public LocalizedTitles title;  // Multi-language titles
+    public DescriptionConfig description; // Score format and sort order
+}
+
+// Remote config feature
+public class ClientFeature
+{
+    public string name;
+    public string value;
+    public ClientFeature(string name, string value);
 }
 ```
 

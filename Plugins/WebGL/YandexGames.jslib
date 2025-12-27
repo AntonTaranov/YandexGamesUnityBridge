@@ -211,6 +211,36 @@ var YandexGamesPlugin = {
             console.error('Failed to get flags:', err);
             SendMessage('YandexGamesCallbackReceiver', 'OnGetFlagsError', err.message || 'Unknown error');
         });
+    },
+
+    // Check if review is available
+    CanReviewAsyncJS: function() {
+        if (!window.ysdk) {
+            SendMessage('YandexGamesCallbackReceiver', 'OnCanReviewError', 'Yandex Games SDK not initialized');
+            return;
+        }
+
+        window.ysdk.feedback.canReview().then(result => {
+            SendMessage('YandexGamesCallbackReceiver', 'OnCanReviewComplete', JSON.stringify(result));
+        }).catch(err => {
+            console.error('Failed to check review availability:', err);
+            SendMessage('YandexGamesCallbackReceiver', 'OnCanReviewError', err.message || 'Unknown error');
+        });
+    },
+
+    // Request review from user
+    RequestReviewAsyncJS: function() {
+        if (!window.ysdk) {
+            SendMessage('YandexGamesCallbackReceiver', 'OnRequestReviewError', 'Yandex Games SDK not initialized');
+            return;
+        }
+
+        window.ysdk.feedback.requestReview().then(result => {
+            SendMessage('YandexGamesCallbackReceiver', 'OnRequestReviewComplete', JSON.stringify(result));
+        }).catch(err => {
+            console.error('Failed to request review:', err);
+            SendMessage('YandexGamesCallbackReceiver', 'OnRequestReviewError', err.message || 'Unknown error');
+        });
     }
 };
 

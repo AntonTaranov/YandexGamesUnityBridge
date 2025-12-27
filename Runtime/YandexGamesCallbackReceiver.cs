@@ -126,5 +126,26 @@ namespace YandexGames
         {
             YandexGames.OnGetFlagsError(error);
         }
+
+        // Review callbacks
+        public void OnCanReviewComplete(string json)
+        {
+            YandexGames.OnCanReviewComplete(json);
+        }
+
+        public void OnCanReviewError(string error)
+        {
+            YandexGames.OnCanReviewError(error);
+        }
+
+        public void OnRequestReviewComplete(string json)
+        {
+            YandexGames.OnRequestReviewComplete(json);
+        }
+
+        public void OnRequestReviewError(string error)
+        {
+            YandexGames.OnRequestReviewError(error);
+        }
     }
 }
