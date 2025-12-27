@@ -2,6 +2,8 @@ using System;
 using System.Runtime.InteropServices;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using YandexGames.Leaderboards;
+using YandexGames.RemoteConfig;
 
 namespace YandexGames
 {
@@ -18,6 +20,15 @@ namespace YandexGames
         private static UniTaskCompletionSource<string> _loadDataTask;
         private static UniTaskCompletionSource _interstitialAdTask;
         private static UniTaskCompletionSource<bool> _rewardedAdTask;
+        
+        // Leaderboard task completion sources
+        private static UniTaskCompletionSource _setLeaderboardScoreTask;
+        private static UniTaskCompletionSource<string> _getLeaderboardDescriptionTask;
+        private static UniTaskCompletionSource<string> _getLeaderboardPlayerEntryTask;
+        private static UniTaskCompletionSource<string> _getLeaderboardEntriesTask;
+        
+        // Remote Config task completion source
+        private static UniTaskCompletionSource<string> _getFlagsTask;
         
         /// <summary>
         /// Gets whether the plugin is initialized and ready to use
@@ -216,6 +227,296 @@ namespace YandexGames
 #endif
         }
 
+        #region Leaderboards
+
+        /// <summary>
+        /// Submit a score to the leaderboard
+        /// </summary>
+        /// <param name="leaderboardName">Technical name of the leaderboard</param>
+        /// <param name="score">Score value (non-negative integer)</param>
+        /// <param name="extraData">Optional additional data (max 128 chars)</param>
+        public static async UniTask SetLeaderboardScoreAsync(string leaderboardName, int score, string extraData = "")
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            if (!_isInitialized)
+                throw new YandexGamesException("Plugin not initialized");
+
+            if (string.IsNullOrEmpty(leaderboardName))
+                throw new ArgumentException("Leaderboard name cannot be null or empty", nameof(leaderboardName));
+
+            if (score < 0)
+                throw new ArgumentException("Score must be non-negative", nameof(score));
+
+            try
+            {
+                _setLeaderboardScoreTask = new UniTaskCompletionSource();
+                SetLeaderboardScoreAsyncJS(leaderboardName, score, extraData);
+                await _setLeaderboardScoreTask.Task;
+            }
+            catch (Exception ex)
+            {
+                throw new YandexGamesException($"Failed to set leaderboard score: {ex.Message}", ex);
+            }
+#else
+            await UniTask.Delay(100);
+            Debug.Log($"[YandexGames] Mock: Set score {score} on leaderboard '{leaderboardName}'");
+#endif
+        }
+
+        /// <summary>
+        /// Get leaderboard metadata and configuration
+        /// </summary>
+        /// <param name="leaderboardName">Technical name of the leaderboard</param>
+        /// <returns>Leaderboard description with display settings</returns>
+        public static async UniTask<LeaderboardDescription> GetLeaderboardDescriptionAsync(string leaderboardName)
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            if (!_isInitialized)
+                throw new YandexGamesException("Plugin not initialized");
+
+            if (string.IsNullOrEmpty(leaderboardName))
+                throw new ArgumentException("Leaderboard name cannot be null or empty", nameof(leaderboardName));
+
+            try
+            {
+                _getLeaderboardDescriptionTask = new UniTaskCompletionSource<string>();
+                GetLeaderboardDescriptionAsyncJS(leaderboardName);
+                var json = await _getLeaderboardDescriptionTask.Task;
+                return JsonUtility.FromJson<LeaderboardDescription>(json);
+            }
+            catch (Exception ex)
+            {
+                throw new YandexGamesException($"Failed to get leaderboard description: {ex.Message}", ex);
+            }
+#else
+            await UniTask.Delay(100);
+            return new LeaderboardDescription
+            {
+                name = leaderboardName,
+                appID = "mock",
+                @default = true,
+                title = new LocalizedTitles { en = "Test Leaderboard", ru = "Тестовая таблица" },
+                description = new DescriptionConfig
+                {
+                    invert_sort_order = false,
+                    score_format = new ScoreFormat { type = "numeric", options = new ScoreFormatOptions { decimal_offset = 0 } }
+                }
+            };
+#endif
+        }
+
+        /// <summary>
+        /// Get current player's entry from leaderboard
+        /// </summary>
+        /// <param name="leaderboardName">Technical name of the leaderboard</param>
+        /// <returns>Player's leaderboard entry</returns>
+        public static async UniTask<LeaderboardEntry> GetLeaderboardPlayerEntryAsync(string leaderboardName)
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            if (!_isInitialized)
+                throw new YandexGamesException("Plugin not initialized");
+
+            if (string.IsNullOrEmpty(leaderboardName))
+                throw new ArgumentException("Leaderboard name cannot be null or empty", nameof(leaderboardName));
+
+            try
+            {
+                _getLeaderboardPlayerEntryTask = new UniTaskCompletionSource<string>();
+                GetLeaderboardPlayerEntryAsyncJS(leaderboardName);
+                var json = await _getLeaderboardPlayerEntryTask.Task;
+                return JsonUtility.FromJson<LeaderboardEntry>(json);
+            }
+            catch (Exception ex)
+            {
+                throw new YandexGamesException($"Failed to get player leaderboard entry: {ex.Message}", ex);
+            }
+#else
+            await UniTask.Delay(100);
+            return new LeaderboardEntry
+            {
+                score = 1000,
+                rank = 0,
+                formattedScore = "1000",
+                extraData = "",
+                player = new LeaderboardPlayer
+                {
+                    uniqueID = "test123",
+                    publicName = "Test Player",
+                    lang = "en",
+                    scopePermissions = new ScopePermissions { avatar = "allow", public_name = "allow" }
+                }
+            };
+#endif
+        }
+
+        /// <summary>
+        /// Get leaderboard entries with flexible options
+        /// </summary>
+        /// <param name="leaderboardName">Technical name of the leaderboard</param>
+        /// <param name="includeUser">Include current player in results</param>
+        /// <param name="quantityAround">Number of entries around player (requires includeUser=true)</param>
+        /// <param name="quantityTop">Number of top entries to retrieve</param>
+        /// <returns>Leaderboard entries response with metadata</returns>
+        public static async UniTask<LeaderboardEntriesResponse> GetLeaderboardEntriesAsync(
+            string leaderboardName,
+            bool includeUser = false,
+            int quantityAround = 0,
+            int quantityTop = 0)
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            if (!_isInitialized)
+                throw new YandexGamesException("Plugin not initialized");
+
+            if (string.IsNullOrEmpty(leaderboardName))
+                throw new ArgumentException("Leaderboard name cannot be null or empty", nameof(leaderboardName));
+
+            try
+            {
+                // Build options JSON
+                var options = "{";
+                options += $"\"includeUser\":{(includeUser ? "true" : "false")}";
+                if (quantityAround > 0)
+                    options += $",\"quantityAround\":{quantityAround}";
+                if (quantityTop > 0)
+                    options += $",\"quantityTop\":{quantityTop}";
+                options += "}";
+
+                _getLeaderboardEntriesTask = new UniTaskCompletionSource<string>();
+                GetLeaderboardEntriesAsyncJS(leaderboardName, options);
+                var json = await _getLeaderboardEntriesTask.Task;
+                return JsonUtility.FromJson<LeaderboardEntriesResponse>(json);
+            }
+            catch (Exception ex)
+            {
+                throw new YandexGamesException($"Failed to get leaderboard entries: {ex.Message}", ex);
+            }
+#else
+            await UniTask.Delay(100);
+            return new LeaderboardEntriesResponse
+            {
+                leaderboard = new LeaderboardDescription
+                {
+                    name = leaderboardName,
+                    appID = "mock",
+                    @default = true,
+                    title = new LocalizedTitles { en = "Test Leaderboard", ru = "Тестовая таблица" },
+                    description = new DescriptionConfig
+                    {
+                        invert_sort_order = false,
+                        score_format = new ScoreFormat { type = "numeric", options = new ScoreFormatOptions { decimal_offset = 0 } }
+                    }
+                },
+                userRank = 0,
+                ranges = new[] { new EntryRange { start = 0, size = 1 } },
+                entries = new[]
+                {
+                    new LeaderboardEntry
+                    {
+                        score = 1000,
+                        rank = 0,
+                        formattedScore = "1000",
+                        extraData = "",
+                        player = new LeaderboardPlayer
+                        {
+                            uniqueID = "test123",
+                            publicName = "Test Player",
+                            lang = "en",
+                            scopePermissions = new ScopePermissions { avatar = "allow", public_name = "allow" }
+                        }
+                    }
+                }
+            };
+#endif
+        }
+
+        #endregion
+
+        #region Remote Config
+
+        /// <summary>
+        /// Get remote configuration flags with optional client features
+        /// </summary>
+        /// <param name="defaultFlags">Default flag values if remote fetch fails</param>
+        /// <param name="clientFeatures">Optional client features for targeting (max 10)</param>
+        /// <returns>Dictionary of flag names to values</returns>
+        public static async UniTask<System.Collections.Generic.Dictionary<string, string>> GetFlagsAsync(
+            System.Collections.Generic.Dictionary<string, string> defaultFlags = null,
+            ClientFeature[] clientFeatures = null)
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            if (!_isInitialized)
+                throw new YandexGamesException("Plugin not initialized");
+
+            if (clientFeatures != null && clientFeatures.Length > 10)
+                throw new ArgumentException("Maximum 10 client features allowed", nameof(clientFeatures));
+
+            try
+            {
+                // Build options JSON
+                var options = "{";
+                if (defaultFlags != null && defaultFlags.Count > 0)
+                {
+                    options += "\"defaultFlags\":{";
+                    var first = true;
+                    foreach (var kvp in defaultFlags)
+                    {
+                        if (!first) options += ",";
+                        options += $"\"{kvp.Key}\":\"{kvp.Value}\"";
+                        first = false;
+                    }
+                    options += "}";
+                }
+
+                if (clientFeatures != null && clientFeatures.Length > 0)
+                {
+                    if (defaultFlags != null && defaultFlags.Count > 0)
+                        options += ",";
+                    options += "\"clientFeatures\":[";
+                    for (int i = 0; i < clientFeatures.Length; i++)
+                    {
+                        if (i > 0) options += ",";
+                        options += $"{{\"name\":\"{clientFeatures[i].name}\",\"value\":\"{clientFeatures[i].value}\"}}";
+                    }
+                    options += "]";
+                }
+                options += "}";
+
+                _getFlagsTask = new UniTaskCompletionSource<string>();
+                GetFlagsAsyncJS(options);
+                var json = await _getFlagsTask.Task;
+                
+                // Parse JSON response into dictionary
+                var flags = new System.Collections.Generic.Dictionary<string, string>();
+                // Simple JSON parsing for flat key-value pairs
+                if (!string.IsNullOrEmpty(json) && json.Length > 2)
+                {
+                    json = json.Trim('{', '}');
+                    var pairs = json.Split(',');
+                    foreach (var pair in pairs)
+                    {
+                        var parts = pair.Split(':');
+                        if (parts.Length == 2)
+                        {
+                            var key = parts[0].Trim().Trim('"');
+                            var value = parts[1].Trim().Trim('"');
+                            flags[key] = value;
+                        }
+                    }
+                }
+                return flags;
+            }
+            catch (Exception ex)
+            {
+                throw new YandexGamesException($"Failed to get flags: {ex.Message}", ex);
+            }
+#else
+            await UniTask.Delay(100);
+            return defaultFlags ?? new System.Collections.Generic.Dictionary<string, string>();
+#endif
+        }
+
+        #endregion
+
         // Callback methods called from JavaScript
         /// <summary>
         /// Internal callback handler for successful initialization
@@ -297,6 +598,58 @@ namespace YandexGames
             _rewardedAdTask?.TrySetException(new YandexGamesException(error));
         }
 
+        // Leaderboard callbacks
+        public static void OnSetLeaderboardScoreComplete()
+        {
+            _setLeaderboardScoreTask?.TrySetResult();
+        }
+
+        public static void OnSetLeaderboardScoreError(string error)
+        {
+            _setLeaderboardScoreTask?.TrySetException(new YandexGamesException(error));
+        }
+
+        public static void OnGetLeaderboardDescriptionComplete(string json)
+        {
+            _getLeaderboardDescriptionTask?.TrySetResult(json);
+        }
+
+        public static void OnGetLeaderboardDescriptionError(string error)
+        {
+            _getLeaderboardDescriptionTask?.TrySetException(new YandexGamesException(error));
+        }
+
+        public static void OnGetLeaderboardPlayerEntryComplete(string json)
+        {
+            _getLeaderboardPlayerEntryTask?.TrySetResult(json);
+        }
+
+        public static void OnGetLeaderboardPlayerEntryError(string error)
+        {
+            _getLeaderboardPlayerEntryTask?.TrySetException(new YandexGamesException(error));
+        }
+
+        public static void OnGetLeaderboardEntriesComplete(string json)
+        {
+            _getLeaderboardEntriesTask?.TrySetResult(json);
+        }
+
+        public static void OnGetLeaderboardEntriesError(string error)
+        {
+            _getLeaderboardEntriesTask?.TrySetException(new YandexGamesException(error));
+        }
+
+        // Remote Config callbacks
+        public static void OnGetFlagsComplete(string json)
+        {
+            _getFlagsTask?.TrySetResult(json);
+        }
+
+        public static void OnGetFlagsError(string error)
+        {
+            _getFlagsTask?.TrySetException(new YandexGamesException(error));
+        }
+
         // JavaScript bridge declarations
 #if UNITY_WEBGL && !UNITY_EDITOR
         [DllImport("__Internal")]
@@ -316,6 +669,23 @@ namespace YandexGames
 
         [DllImport("__Internal")]
         private static extern void ShowRewardedAdAsyncJS();
+
+        // Leaderboard bridge declarations
+        [DllImport("__Internal")]
+        private static extern void SetLeaderboardScoreAsyncJS(string leaderboardName, int score, string extraData);
+
+        [DllImport("__Internal")]
+        private static extern void GetLeaderboardDescriptionAsyncJS(string leaderboardName);
+
+        [DllImport("__Internal")]
+        private static extern void GetLeaderboardPlayerEntryAsyncJS(string leaderboardName);
+
+        [DllImport("__Internal")]
+        private static extern void GetLeaderboardEntriesAsyncJS(string leaderboardName, string optionsJson);
+
+        // Remote Config bridge declarations
+        [DllImport("__Internal")]
+        private static extern void GetFlagsAsyncJS(string optionsJson);
 #endif
     }
 }

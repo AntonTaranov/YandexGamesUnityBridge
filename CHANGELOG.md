@@ -5,6 +5,48 @@ All notable changes to the Yandex Games Unity Plugin will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-01-XX
+
+### Added
+- **Leaderboards API**: Full support for Yandex Games Leaderboards
+  - `SetLeaderboardScoreAsync()`: Submit player scores with optional metadata
+  - `GetLeaderboardPlayerEntryAsync()`: Retrieve current player's rank and score
+  - `GetLeaderboardEntriesAsync()`: Fetch top players or players around current player with flexible options
+  - `GetLeaderboardDescriptionAsync()`: Get leaderboard metadata (titles, score format, sort order)
+- **Remote Configuration API**: Feature flags and A/B testing support
+  - `GetFlagsAsync()`: Fetch remote config flags with default values and client feature targeting
+- **Data Models**: 11 serializable C# classes for JSON deserialization
+  - `LeaderboardEntry`, `LeaderboardPlayer`, `ScopePermissions` (leaderboard entries)
+  - `LeaderboardDescription`, `LocalizedTitles`, `DescriptionConfig` (leaderboard metadata)
+  - `ScoreFormat`, `ScoreFormatOptions` (score display configuration)
+  - `LeaderboardEntriesResponse`, `EntryRange` (API responses)
+  - `ClientFeature` (remote config targeting)
+- **JavaScript Bridge**: Extended `YandexGames.jslib` with 5 new bridge functions
+  - `SetLeaderboardScoreAsyncJS`, `GetLeaderboardDescriptionAsyncJS`
+  - `GetLeaderboardPlayerEntryAsyncJS`, `GetLeaderboardEntriesAsyncJS`
+  - `GetFlagsAsyncJS`
+- **Examples**: Added sample scripts in `Samples~` folder
+  - `LeaderboardExample.cs`: Score submission, rank retrieval, top players display
+  - `RemoteConfigExample.cs`: Feature flags, A/B testing patterns
+- **Documentation**: Comprehensive guide for new features
+  - `Documentation~/LeaderboardsAndRemoteConfig.md`: Full API reference and examples
+
+### Technical Details
+- All async operations use UniTask for consistency
+- Editor mock mode for development/testing (returns fake data)
+- WebGL-only implementation (throws exception on other platforms)
+- Parameter validation for all public API methods
+- Full error handling with `YandexGamesException`
+- Rate limit documentation (score submission: 1 req/sec per player)
+- Support for decimal offsets and time-based leaderboards
+- Multi-language title support (en, ru, tr, de, fr, es, pt)
+- Client feature targeting (max 10 features) for remote config
+
+### Changed
+- Extended `YandexGamesCallbackReceiver` with 10 new callback methods
+- Added 5 new UniTaskCompletionSource fields to `YandexGames` class
+- Added 5 new DllImport declarations for JavaScript bridge
+
 ## [1.1.0] - 2025-12-25
 
 ### Fixed

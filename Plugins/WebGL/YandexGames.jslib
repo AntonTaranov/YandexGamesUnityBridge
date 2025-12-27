@@ -124,6 +124,93 @@ var YandexGamesPlugin = {
                 }
             }
         });
+    },
+
+    // Set leaderboard score
+    SetLeaderboardScoreAsyncJS: function(leaderboardNamePtr, score, extraDataPtr) {
+        var leaderboardName = UTF8ToString(leaderboardNamePtr);
+        var extraData = extraDataPtr ? UTF8ToString(extraDataPtr) : '';
+        
+        if (!window.ysdk) {
+            SendMessage('YandexGamesCallbackReceiver', 'OnSetLeaderboardScoreError', 'Yandex Games SDK not initialized');
+            return;
+        }
+
+        window.ysdk.leaderboards.setScore(leaderboardName, score, extraData).then(() => {
+            SendMessage('YandexGamesCallbackReceiver', 'OnSetLeaderboardScoreComplete', '');
+        }).catch(err => {
+            console.error('Failed to set leaderboard score:', err);
+            SendMessage('YandexGamesCallbackReceiver', 'OnSetLeaderboardScoreError', err.message || 'Unknown error');
+        });
+    },
+
+    // Get leaderboard description
+    GetLeaderboardDescriptionAsyncJS: function(leaderboardNamePtr) {
+        var leaderboardName = UTF8ToString(leaderboardNamePtr);
+        
+        if (!window.ysdk) {
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetLeaderboardDescriptionError', 'Yandex Games SDK not initialized');
+            return;
+        }
+
+        window.ysdk.leaderboards.getDescription(leaderboardName).then(description => {
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetLeaderboardDescriptionComplete', JSON.stringify(description));
+        }).catch(err => {
+            console.error('Failed to get leaderboard description:', err);
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetLeaderboardDescriptionError', err.message || 'Unknown error');
+        });
+    },
+
+    // Get leaderboard player entry
+    GetLeaderboardPlayerEntryAsyncJS: function(leaderboardNamePtr) {
+        var leaderboardName = UTF8ToString(leaderboardNamePtr);
+        
+        if (!window.ysdk) {
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetLeaderboardPlayerEntryError', 'Yandex Games SDK not initialized');
+            return;
+        }
+
+        window.ysdk.leaderboards.getPlayerEntry(leaderboardName).then(entry => {
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetLeaderboardPlayerEntryComplete', JSON.stringify(entry));
+        }).catch(err => {
+            console.error('Failed to get leaderboard player entry:', err);
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetLeaderboardPlayerEntryError', err.message || 'Unknown error');
+        });
+    },
+
+    // Get leaderboard entries
+    GetLeaderboardEntriesAsyncJS: function(leaderboardNamePtr, optionsJson) {
+        var leaderboardName = UTF8ToString(leaderboardNamePtr);
+        var options = optionsJson ? JSON.parse(UTF8ToString(optionsJson)) : {};
+        
+        if (!window.ysdk) {
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetLeaderboardEntriesError', 'Yandex Games SDK not initialized');
+            return;
+        }
+
+        window.ysdk.leaderboards.getEntries(leaderboardName, options).then(response => {
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetLeaderboardEntriesComplete', JSON.stringify(response));
+        }).catch(err => {
+            console.error('Failed to get leaderboard entries:', err);
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetLeaderboardEntriesError', err.message || 'Unknown error');
+        });
+    },
+
+    // Get remote config flags
+    GetFlagsAsyncJS: function(optionsJson) {
+        var options = optionsJson ? JSON.parse(UTF8ToString(optionsJson)) : {};
+        
+        if (!window.ysdk) {
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetFlagsError', 'Yandex Games SDK not initialized');
+            return;
+        }
+
+        window.ysdk.getFlags(options).then(flags => {
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetFlagsComplete', JSON.stringify(flags));
+        }).catch(err => {
+            console.error('Failed to get flags:', err);
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetFlagsError', err.message || 'Unknown error');
+        });
     }
 };
 

@@ -1,6 +1,6 @@
 {
   "name": "com.yandex.games",
-  "version": "1.0.1",
+  "version": "1.2.0",
   "displayName": "Yandex Games",
   "description": "Unity plugin for Yandex Games integration with minimal usage pattern. Provides auto-initialization, player data retrieval, cloud storage, and advertisement functionality.",
   "unity": "2022.3",
