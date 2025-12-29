@@ -27,7 +27,7 @@ var YandexGamesPlugin = {
             return;
         }
 
-        window.ysdk.getPlayer({ signed: true }).then(player => {
+        window.ysdk.getPlayer().then(player => {
             var playerData = {
                 name: player.getName() || 'Anonymous',
                 avatar: player.getPhoto('medium') || '',
@@ -51,7 +51,7 @@ var YandexGamesPlugin = {
             return;
         }
 
-        window.ysdk.getPlayer({ signed: true }).then(player => {
+        window.ysdk.getPlayer().then(player => {
             var saveData = {};
             saveData[key] = data;
             return player.setData(saveData, true);
@@ -72,7 +72,7 @@ var YandexGamesPlugin = {
             return;
         }
 
-        window.ysdk.getPlayer({ signed: true }).then(player => {
+        window.ysdk.getPlayer().then(player => {
             return player.getData([key]);
         }).then(data => {
             var result = data[key] || null;
@@ -199,7 +199,8 @@ var YandexGamesPlugin = {
 
     // Get remote config flags
     GetFlagsAsyncJS: function(optionsJson) {
-        var optionsStr = optionsJson ? UTF8ToString(optionsJson) : '{}';\n        var options = JSON.parse(optionsStr);
+        var optionsStr = optionsJson ? UTF8ToString(optionsJson) : '{}';
+        var options = JSON.parse(optionsStr);
         
         if (!window.ysdk) {
             SendMessage('YandexGamesCallbackReceiver', 'OnGetFlagsError', JSON.stringify({requestKey: optionsStr, error: 'Yandex Games SDK not initialized'}));
