@@ -96,7 +96,10 @@ namespace YandexGames
 
             // Return existing task if already in progress
             if (_playerDataTask != null && _playerDataTask.Task.Status == UniTaskStatus.Pending)
-                return _playerDataTask.Task.ContinueWith(json => JsonUtility.FromJson<PlayerData>(json));
+            {
+                var json = await _playerDataTask.Task;
+                return JsonUtility.FromJson<PlayerData>(json);
+            }
 
             try
             {
@@ -139,7 +142,10 @@ namespace YandexGames
 
             // Return existing task if already in progress for this key
             if (_saveDataTasks.TryGetValue(key, out var existingTask) && existingTask.Task.Status == UniTaskStatus.Pending)
-                return existingTask.Task;
+            {
+                await existingTask.Task;
+                return;
+            }
 
             try
             {
@@ -179,7 +185,9 @@ namespace YandexGames
 
             // Return existing task if already in progress for this key
             if (_loadDataTasks.TryGetValue(key, out var existingTask) && existingTask.Task.Status == UniTaskStatus.Pending)
-                return existingTask.Task;
+            {
+                return await existingTask.Task;
+            }
 
             try
             {
@@ -215,7 +223,10 @@ namespace YandexGames
 
             // Return existing task if already in progress
             if (_interstitialAdTask != null && _interstitialAdTask.Task.Status == UniTaskStatus.Pending)
-                return _interstitialAdTask.Task;
+            {
+                await _interstitialAdTask.Task;
+                return;
+            }
 
             try
             {
@@ -247,7 +258,9 @@ namespace YandexGames
             // Return existing task if already in progress
             if (_rewardedAdTask != null && _rewardedAdTask.Task.Status == UniTaskStatus.Pending)
             {
-                return _rewardedAdTask.Task.ContinueWith(rewarded => { onResult?.Invoke(rewarded); });
+                var rewarded = await _rewardedAdTask.Task;
+                onResult?.Invoke(rewarded);
+                return;
             }
 
             try
@@ -292,7 +305,10 @@ namespace YandexGames
 
             // Return existing task if already in progress for this leaderboard
             if (_setLeaderboardScoreTasks.TryGetValue(leaderboardName, out var existingTask) && existingTask.Task.Status == UniTaskStatus.Pending)
-                return existingTask.Task;
+            {
+                await existingTask.Task;
+                return;
+            }
 
             try
             {
@@ -329,7 +345,10 @@ namespace YandexGames
 
             // Return existing task if already in progress for this leaderboard
             if (_getLeaderboardDescriptionTasks.TryGetValue(leaderboardName, out var existingTask) && existingTask.Task.Status == UniTaskStatus.Pending)
-                return existingTask.Task.ContinueWith(json => JsonUtility.FromJson<LeaderboardDescription>(json));
+            {
+                var json = await existingTask.Task;
+                return JsonUtility.FromJson<LeaderboardDescription>(json);
+            }
 
             try
             {
@@ -378,7 +397,10 @@ namespace YandexGames
 
             // Return existing task if already in progress for this leaderboard
             if (_getLeaderboardPlayerEntryTasks.TryGetValue(leaderboardName, out var existingTask) && existingTask.Task.Status == UniTaskStatus.Pending)
-                return existingTask.Task.ContinueWith(json => JsonUtility.FromJson<LeaderboardEntry>(json));
+            {
+                var json = await existingTask.Task;
+                return JsonUtility.FromJson<LeaderboardEntry>(json);
+            }
 
             try
             {
@@ -447,7 +469,10 @@ namespace YandexGames
 
             // Return existing task if already in progress for this request
             if (_getLeaderboardEntriesTasks.TryGetValue(requestKey, out var existingTask) && existingTask.Task.Status == UniTaskStatus.Pending)
-                return existingTask.Task.ContinueWith(json => JsonUtility.FromJson<LeaderboardEntriesResponse>(json));
+            {
+                var json = await existingTask.Task;
+                return JsonUtility.FromJson<LeaderboardEntriesResponse>(json);
+            }
 
             try
             {
@@ -557,26 +582,24 @@ namespace YandexGames
             // Return existing task if already in progress for these options
             if (_getFlagsTasks.TryGetValue(requestKey, out var existingTask) && existingTask.Task.Status == UniTaskStatus.Pending)
             {
-                return existingTask.Task.ContinueWith(json =>
+                var json = await existingTask.Task;
+                var flags = new System.Collections.Generic.Dictionary<string, string>();
+                if (!string.IsNullOrEmpty(json) && json.Length > 2)
                 {
-                    var flags = new System.Collections.Generic.Dictionary<string, string>();
-                    if (!string.IsNullOrEmpty(json) && json.Length > 2)
+                    json = json.Trim('{', '}');
+                    var pairs = json.Split(',');
+                    foreach (var pair in pairs)
                     {
-                        json = json.Trim('{', '}');
-                        var pairs = json.Split(',');
-                        foreach (var pair in pairs)
+                        var parts = pair.Split(':');
+                        if (parts.Length == 2)
                         {
-                            var parts = pair.Split(':');
-                            if (parts.Length == 2)
-                            {
-                                var key = parts[0].Trim().Trim('"');
-                                var value = parts[1].Trim().Trim('"');
-                                flags[key] = value;
-                            }
+                            var key = parts[0].Trim().Trim('"');
+                            var value = parts[1].Trim().Trim('"');
+                            flags[key] = value;
                         }
                     }
-                    return flags;
-                });
+                }
+                return flags;
             }
 
             try
@@ -635,19 +658,17 @@ namespace YandexGames
             // Return existing task if already in progress
             if (_canReviewTask != null && _canReviewTask.Task.Status == UniTaskStatus.Pending)
             {
-                return _canReviewTask.Task.ContinueWith(json =>
+                var json = await _canReviewTask.Task;
+                var value = json.Contains("\"value\":true");
+                var reason = "";
+                if (!value && json.Contains("\"reason\":"))
                 {
-                    var value = json.Contains("\"value\":true");
-                    var reason = "";
-                    if (!value && json.Contains("\"reason\":"))
-                    {
-                        var reasonStart = json.IndexOf("\"reason\":\"") + 10;
-                        var reasonEnd = json.IndexOf("\"", reasonStart);
-                        if (reasonEnd > reasonStart)
-                            reason = json.Substring(reasonStart, reasonEnd - reasonStart);
-                    }
-                    return (value, reason);
-                });
+                    var reasonStart = json.IndexOf("\"reason\":\"") + 10;
+                    var reasonEnd = json.IndexOf("\"", reasonStart);
+                    if (reasonEnd > reasonStart)
+                        reason = json.Substring(reasonStart, reasonEnd - reasonStart);
+                }
+                return (value, reason);
             }
 
             try
@@ -697,11 +718,9 @@ namespace YandexGames
             // Return existing task if already in progress
             if (_requestReviewTask != null && _requestReviewTask.Task.Status == UniTaskStatus.Pending)
             {
-                return _requestReviewTask.Task.ContinueWith(json =>
-                {
-                    var feedbackSent = json.Contains("\"feedbackSent\":true");
-                    return feedbackSent;
-                });
+                var json = await _requestReviewTask.Task;
+                var feedbackSent = json.Contains("\"feedbackSent\":true");
+                return feedbackSent;
             }
 
             try

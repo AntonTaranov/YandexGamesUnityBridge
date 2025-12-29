@@ -102,7 +102,9 @@ namespace YandexGames
 
             // Return existing task if already in progress
             if (_getCatalogTask != null && _getCatalogTask.Task.Status == UniTaskStatus.Pending)
-                return _getCatalogTask.Task;
+            {
+                return await _getCatalogTask.Task;
+            }
 
             try
             {
@@ -151,7 +153,9 @@ namespace YandexGames
 
             // Return existing task if already in progress
             if (_purchaseTask != null && _purchaseTask.Task.Status == UniTaskStatus.Pending)
-                return _purchaseTask.Task;
+            {
+                return await _purchaseTask.Task;
+            }
 
             try
             {
@@ -220,7 +224,9 @@ namespace YandexGames
 
             // Return existing task if already in progress
             if (_getPurchasesTask != null && _getPurchasesTask.Task.Status == UniTaskStatus.Pending)
-                return _getPurchasesTask.Task;
+            {
+                return await _getPurchasesTask.Task;
+            }
 
             try
             {
@@ -268,7 +274,10 @@ namespace YandexGames
 
             // Return existing task if already in progress
             if (_consumePurchaseTask != null && _consumePurchaseTask.Task.Status == UniTaskStatus.Pending)
-                return _consumePurchaseTask.Task;
+            {
+                await _consumePurchaseTask.Task;
+                return;
+            }
 
             try
             {

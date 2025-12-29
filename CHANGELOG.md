@@ -5,6 +5,15 @@ All notable changes to the Yandex Games Unity Plugin will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2025-12-29
+
+### Fixed
+- Fixed race conditions in async methods when multiple calls are made with different parameters
+- Each concurrent async call with unique parameters now properly maintains its own task completion source
+- JavaScript callbacks now include request identifiers to match responses with correct callers
+- SaveDataAsync, LoadDataAsync, and all leaderboard methods now support concurrent calls with different keys/parameters
+- Concurrent calls to same async method with different parameters now correctly receive their respective results
+
 ## [1.4.0] - 2025-12-29
 
 ### Added
