@@ -67,8 +67,6 @@ var YandexGamesPlugin = {
     LoadDataAsyncJS: function(keyPtr) {
         var key = UTF8ToString(keyPtr);
         
-        console.log('[YandexGames] LoadDataAsync: Loading data for key:', key);
-        
         if (!window.ysdk) {
             SendMessage('YandexGamesCallbackReceiver', 'OnLoadDataError', JSON.stringify({key: key, error: 'Yandex Games SDK not initialized'}));
             return;
@@ -77,17 +75,10 @@ var YandexGamesPlugin = {
         window.ysdk.getPlayer().then(player => {
             return player.getData([key]);
         }).then(data => {
-            console.log('[YandexGames] LoadDataAsync: Raw data received:', data);
-            console.log('[YandexGames] LoadDataAsync: Data for key "' + key + '":', data[key]);
-            console.log('[YandexGames] LoadDataAsync: Data type:', typeof data[key]);
-            
             var result = data[key] || null;
-            var resultJson = JSON.stringify({key: key, data: result || ''});
-            
-            console.log('[YandexGames] LoadDataAsync: Sending to Unity:', resultJson);
-            SendMessage('YandexGamesCallbackReceiver', 'OnLoadDataComplete', resultJson);
+            SendMessage('YandexGamesCallbackReceiver', 'OnLoadDataComplete', JSON.stringify({key: key, data: result || ''}));
         }).catch(err => {
-            console.error('[YandexGames] LoadDataAsync: Failed to load data:', err);
+            console.error('Failed to load data:', err);
             SendMessage('YandexGamesCallbackReceiver', 'OnLoadDataError', JSON.stringify({key: key, error: err.message || 'Unknown error'}));
         });
     },
