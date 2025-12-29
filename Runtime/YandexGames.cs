@@ -15,22 +15,24 @@ namespace YandexGames
         private static bool _isInitialized = false;
         private static bool _isInitializing = false;
         private const float INIT_TIMEOUT_SECONDS = 10f;
+        
+        // Use dictionaries to track multiple concurrent calls with different parameters
         private static UniTaskCompletionSource<string> _playerDataTask;
-        private static UniTaskCompletionSource _saveDataTask;
-        private static UniTaskCompletionSource<string> _loadDataTask;
+        private static readonly System.Collections.Generic.Dictionary<string, UniTaskCompletionSource> _saveDataTasks = new System.Collections.Generic.Dictionary<string, UniTaskCompletionSource>();
+        private static readonly System.Collections.Generic.Dictionary<string, UniTaskCompletionSource<string>> _loadDataTasks = new System.Collections.Generic.Dictionary<string, UniTaskCompletionSource<string>>();
         private static UniTaskCompletionSource _interstitialAdTask;
         private static UniTaskCompletionSource<bool> _rewardedAdTask;
         
         // Leaderboard task completion sources
-        private static UniTaskCompletionSource _setLeaderboardScoreTask;
-        private static UniTaskCompletionSource<string> _getLeaderboardDescriptionTask;
-        private static UniTaskCompletionSource<string> _getLeaderboardPlayerEntryTask;
-        private static UniTaskCompletionSource<string> _getLeaderboardEntriesTask;
+        private static readonly System.Collections.Generic.Dictionary<string, UniTaskCompletionSource> _setLeaderboardScoreTasks = new System.Collections.Generic.Dictionary<string, UniTaskCompletionSource>();
+        private static readonly System.Collections.Generic.Dictionary<string, UniTaskCompletionSource<string>> _getLeaderboardDescriptionTasks = new System.Collections.Generic.Dictionary<string, UniTaskCompletionSource<string>>();
+        private static readonly System.Collections.Generic.Dictionary<string, UniTaskCompletionSource<string>> _getLeaderboardPlayerEntryTasks = new System.Collections.Generic.Dictionary<string, UniTaskCompletionSource<string>>();
+        private static readonly System.Collections.Generic.Dictionary<string, UniTaskCompletionSource<string>> _getLeaderboardEntriesTasks = new System.Collections.Generic.Dictionary<string, UniTaskCompletionSource<string>>();
         
         // Remote Config task completion source
-        private static UniTaskCompletionSource<string> _getFlagsTask;
+        private static readonly System.Collections.Generic.Dictionary<string, UniTaskCompletionSource<string>> _getFlagsTasks = new System.Collections.Generic.Dictionary<string, UniTaskCompletionSource<string>>();
         
-        // Review task completion sources
+        // Review task completion sources (single calls per session)
         private static UniTaskCompletionSource<string> _canReviewTask;
         private static UniTaskCompletionSource<string> _requestReviewTask;
         
@@ -38,6 +40,11 @@ namespace YandexGames
         /// Gets whether the plugin is initialized and ready to use
         /// </summary>
         public static bool IsInitialized => _isInitialized;
+
+        /// <summary>
+        /// Access to Yandex Games payment APIs
+        /// </summary>
+        public static YandexGamesPayments Payments => YandexGamesPayments.Instance;
 
         /// <summary>
         /// Initialize Yandex Games plugin (called automatically)
@@ -87,6 +94,10 @@ namespace YandexGames
             if (!_isInitialized)
                 throw new YandexGamesException("Plugin not initialized");
 
+            // Return existing task if already in progress
+            if (_playerDataTask != null && _playerDataTask.Task.Status == UniTaskStatus.Pending)
+                return _playerDataTask.Task.ContinueWith(json => JsonUtility.FromJson<PlayerData>(json));
+
             try
             {
                 _playerDataTask = new UniTaskCompletionSource<string>();
@@ -126,14 +137,21 @@ namespace YandexGames
             if (!_isInitialized)
                 throw new YandexGamesException("Plugin not initialized");
 
+            // Return existing task if already in progress for this key
+            if (_saveDataTasks.TryGetValue(key, out var existingTask) && existingTask.Task.Status == UniTaskStatus.Pending)
+                return existingTask.Task;
+
             try
             {
-                _saveDataTask = new UniTaskCompletionSource();
+                var task = new UniTaskCompletionSource();
+                _saveDataTasks[key] = task;
                 SaveDataAsyncJS(key, data ?? "");
-                await _saveDataTask.Task;
+                await task.Task;
+                _saveDataTasks.Remove(key);
             }
             catch (Exception ex)
             {
+                _saveDataTasks.Remove(key);
                 throw new YandexGamesException($"Failed to save data: {ex.Message}", ex);
             }
 #else
@@ -159,14 +177,22 @@ namespace YandexGames
             if (!_isInitialized)
                 throw new YandexGamesException("Plugin not initialized");
 
+            // Return existing task if already in progress for this key
+            if (_loadDataTasks.TryGetValue(key, out var existingTask) && existingTask.Task.Status == UniTaskStatus.Pending)
+                return existingTask.Task;
+
             try
             {
-                _loadDataTask = new UniTaskCompletionSource<string>();
+                var task = new UniTaskCompletionSource<string>();
+                _loadDataTasks[key] = task;
                 LoadDataAsyncJS(key);
-                return await _loadDataTask.Task;
+                var result = await task.Task;
+                _loadDataTasks.Remove(key);
+                return result;
             }
             catch (Exception ex)
             {
+                _loadDataTasks.Remove(key);
                 throw new YandexGamesException($"Failed to load data: {ex.Message}", ex);
             }
 #else
@@ -186,6 +212,10 @@ namespace YandexGames
 #if UNITY_WEBGL && !UNITY_EDITOR
             if (!_isInitialized)
                 throw new YandexGamesException("Plugin not initialized");
+
+            // Return existing task if already in progress
+            if (_interstitialAdTask != null && _interstitialAdTask.Task.Status == UniTaskStatus.Pending)
+                return _interstitialAdTask.Task;
 
             try
             {
@@ -213,6 +243,12 @@ namespace YandexGames
 #if UNITY_WEBGL && !UNITY_EDITOR
             if (!_isInitialized)
                 throw new YandexGamesException("Plugin not initialized");
+
+            // Return existing task if already in progress
+            if (_rewardedAdTask != null && _rewardedAdTask.Task.Status == UniTaskStatus.Pending)
+            {
+                return _rewardedAdTask.Task.ContinueWith(rewarded => { onResult?.Invoke(rewarded); });
+            }
 
             try
             {
@@ -254,14 +290,21 @@ namespace YandexGames
             if (score < 0)
                 throw new ArgumentException("Score must be non-negative", nameof(score));
 
+            // Return existing task if already in progress for this leaderboard
+            if (_setLeaderboardScoreTasks.TryGetValue(leaderboardName, out var existingTask) && existingTask.Task.Status == UniTaskStatus.Pending)
+                return existingTask.Task;
+
             try
             {
-                _setLeaderboardScoreTask = new UniTaskCompletionSource();
+                var task = new UniTaskCompletionSource();
+                _setLeaderboardScoreTasks[leaderboardName] = task;
                 SetLeaderboardScoreAsyncJS(leaderboardName, score, extraData);
-                await _setLeaderboardScoreTask.Task;
+                await task.Task;
+                _setLeaderboardScoreTasks.Remove(leaderboardName);
             }
             catch (Exception ex)
             {
+                _setLeaderboardScoreTasks.Remove(leaderboardName);
                 throw new YandexGamesException($"Failed to set leaderboard score: {ex.Message}", ex);
             }
 #else
@@ -284,15 +327,22 @@ namespace YandexGames
             if (string.IsNullOrEmpty(leaderboardName))
                 throw new ArgumentException("Leaderboard name cannot be null or empty", nameof(leaderboardName));
 
+            // Return existing task if already in progress for this leaderboard
+            if (_getLeaderboardDescriptionTasks.TryGetValue(leaderboardName, out var existingTask) && existingTask.Task.Status == UniTaskStatus.Pending)
+                return existingTask.Task.ContinueWith(json => JsonUtility.FromJson<LeaderboardDescription>(json));
+
             try
             {
-                _getLeaderboardDescriptionTask = new UniTaskCompletionSource<string>();
+                var task = new UniTaskCompletionSource<string>();
+                _getLeaderboardDescriptionTasks[leaderboardName] = task;
                 GetLeaderboardDescriptionAsyncJS(leaderboardName);
-                var json = await _getLeaderboardDescriptionTask.Task;
+                var json = await task.Task;
+                _getLeaderboardDescriptionTasks.Remove(leaderboardName);
                 return JsonUtility.FromJson<LeaderboardDescription>(json);
             }
             catch (Exception ex)
             {
+                _getLeaderboardDescriptionTasks.Remove(leaderboardName);
                 throw new YandexGamesException($"Failed to get leaderboard description: {ex.Message}", ex);
             }
 #else
@@ -326,15 +376,22 @@ namespace YandexGames
             if (string.IsNullOrEmpty(leaderboardName))
                 throw new ArgumentException("Leaderboard name cannot be null or empty", nameof(leaderboardName));
 
+            // Return existing task if already in progress for this leaderboard
+            if (_getLeaderboardPlayerEntryTasks.TryGetValue(leaderboardName, out var existingTask) && existingTask.Task.Status == UniTaskStatus.Pending)
+                return existingTask.Task.ContinueWith(json => JsonUtility.FromJson<LeaderboardEntry>(json));
+
             try
             {
-                _getLeaderboardPlayerEntryTask = new UniTaskCompletionSource<string>();
+                var task = new UniTaskCompletionSource<string>();
+                _getLeaderboardPlayerEntryTasks[leaderboardName] = task;
                 GetLeaderboardPlayerEntryAsyncJS(leaderboardName);
-                var json = await _getLeaderboardPlayerEntryTask.Task;
+                var json = await task.Task;
+                _getLeaderboardPlayerEntryTasks.Remove(leaderboardName);
                 return JsonUtility.FromJson<LeaderboardEntry>(json);
             }
             catch (Exception ex)
             {
+                _getLeaderboardPlayerEntryTasks.Remove(leaderboardName);
                 throw new YandexGamesException($"Failed to get player leaderboard entry: {ex.Message}", ex);
             }
 #else
@@ -377,24 +434,33 @@ namespace YandexGames
             if (string.IsNullOrEmpty(leaderboardName))
                 throw new ArgumentException("Leaderboard name cannot be null or empty", nameof(leaderboardName));
 
+            // Build options JSON
+            var options = "{";
+            options += $"\"includeUser\":{(includeUser ? "true" : "false")}";
+            if (quantityAround > 0)
+                options += $",\"quantityAround\":{quantityAround}";
+            if (quantityTop > 0)
+                options += $",\"quantityTop\":{quantityTop}";
+            options += "}";
+
+            var requestKey = $"{leaderboardName}_{options}";
+
+            // Return existing task if already in progress for this request
+            if (_getLeaderboardEntriesTasks.TryGetValue(requestKey, out var existingTask) && existingTask.Task.Status == UniTaskStatus.Pending)
+                return existingTask.Task.ContinueWith(json => JsonUtility.FromJson<LeaderboardEntriesResponse>(json));
+
             try
             {
-                // Build options JSON
-                var options = "{";
-                options += $"\"includeUser\":{(includeUser ? "true" : "false")}";
-                if (quantityAround > 0)
-                    options += $",\"quantityAround\":{quantityAround}";
-                if (quantityTop > 0)
-                    options += $",\"quantityTop\":{quantityTop}";
-                options += "}";
-
-                _getLeaderboardEntriesTask = new UniTaskCompletionSource<string>();
+                var task = new UniTaskCompletionSource<string>();
+                _getLeaderboardEntriesTasks[requestKey] = task;
                 GetLeaderboardEntriesAsyncJS(leaderboardName, options);
-                var json = await _getLeaderboardEntriesTask.Task;
+                var json = await task.Task;
+                _getLeaderboardEntriesTasks.Remove(requestKey);
                 return JsonUtility.FromJson<LeaderboardEntriesResponse>(json);
             }
             catch (Exception ex)
             {
+                _getLeaderboardEntriesTasks.Remove(requestKey);
                 throw new YandexGamesException($"Failed to get leaderboard entries: {ex.Message}", ex);
             }
 #else
@@ -457,10 +523,8 @@ namespace YandexGames
             if (clientFeatures != null && clientFeatures.Length > 10)
                 throw new ArgumentException("Maximum 10 client features allowed", nameof(clientFeatures));
 
-            try
-            {
-                // Build options JSON
-                var options = "{";
+            // Build options JSON
+            var options = "{";
                 if (defaultFlags != null && defaultFlags.Count > 0)
                 {
                     options += "\"defaultFlags\":{";
@@ -488,9 +552,40 @@ namespace YandexGames
                 }
                 options += "}";
 
-                _getFlagsTask = new UniTaskCompletionSource<string>();
+            var requestKey = options;
+
+            // Return existing task if already in progress for these options
+            if (_getFlagsTasks.TryGetValue(requestKey, out var existingTask) && existingTask.Task.Status == UniTaskStatus.Pending)
+            {
+                return existingTask.Task.ContinueWith(json =>
+                {
+                    var flags = new System.Collections.Generic.Dictionary<string, string>();
+                    if (!string.IsNullOrEmpty(json) && json.Length > 2)
+                    {
+                        json = json.Trim('{', '}');
+                        var pairs = json.Split(',');
+                        foreach (var pair in pairs)
+                        {
+                            var parts = pair.Split(':');
+                            if (parts.Length == 2)
+                            {
+                                var key = parts[0].Trim().Trim('"');
+                                var value = parts[1].Trim().Trim('"');
+                                flags[key] = value;
+                            }
+                        }
+                    }
+                    return flags;
+                });
+            }
+
+            try
+            {
+                var task = new UniTaskCompletionSource<string>();
+                _getFlagsTasks[requestKey] = task;
                 GetFlagsAsyncJS(options);
-                var json = await _getFlagsTask.Task;
+                var json = await task.Task;
+                _getFlagsTasks.Remove(requestKey);
                 
                 // Parse JSON response into dictionary
                 var flags = new System.Collections.Generic.Dictionary<string, string>();
@@ -514,6 +609,7 @@ namespace YandexGames
             }
             catch (Exception ex)
             {
+                _getFlagsTasks.Remove(requestKey);
                 throw new YandexGamesException($"Failed to get flags: {ex.Message}", ex);
             }
 #else
@@ -535,6 +631,24 @@ namespace YandexGames
 #if UNITY_WEBGL && !UNITY_EDITOR
             if (!_isInitialized)
                 throw new YandexGamesException("Plugin not initialized");
+
+            // Return existing task if already in progress
+            if (_canReviewTask != null && _canReviewTask.Task.Status == UniTaskStatus.Pending)
+            {
+                return _canReviewTask.Task.ContinueWith(json =>
+                {
+                    var value = json.Contains("\"value\":true");
+                    var reason = "";
+                    if (!value && json.Contains("\"reason\":"))
+                    {
+                        var reasonStart = json.IndexOf("\"reason\":\"") + 10;
+                        var reasonEnd = json.IndexOf("\"", reasonStart);
+                        if (reasonEnd > reasonStart)
+                            reason = json.Substring(reasonStart, reasonEnd - reasonStart);
+                    }
+                    return (value, reason);
+                });
+            }
 
             try
             {
@@ -579,6 +693,16 @@ namespace YandexGames
 #if UNITY_WEBGL && !UNITY_EDITOR
             if (!_isInitialized)
                 throw new YandexGamesException("Plugin not initialized");
+
+            // Return existing task if already in progress
+            if (_requestReviewTask != null && _requestReviewTask.Task.Status == UniTaskStatus.Pending)
+            {
+                return _requestReviewTask.Task.ContinueWith(json =>
+                {
+                    var feedbackSent = json.Contains("\"feedbackSent\":true");
+                    return feedbackSent;
+                });
+            }
 
             try
             {
@@ -643,24 +767,61 @@ namespace YandexGames
             _playerDataTask?.TrySetException(new YandexGamesException(error));
         }
 
-        public static void OnSaveDataComplete()
+        public static void OnSaveDataComplete(string key)
         {
-            _saveDataTask?.TrySetResult();
+            if (_saveDataTasks.TryGetValue(key, out var task))
+                task?.TrySetResult();
         }
 
-        public static void OnSaveDataError(string error)
+        public static void OnSaveDataError(string json)
         {
-            _saveDataTask?.TrySetException(new YandexGamesException(error));
+            try
+            {
+                var callback = JsonUtility.FromJson<KeyErrorCallback>(json);
+                if (_saveDataTasks.TryGetValue(callback.key, out var task))
+                    task?.TrySetException(new YandexGamesException(callback.error));
+            }
+            catch
+            {
+                // Fallback for old format
+                foreach (var task in _saveDataTasks.Values)
+                    task?.TrySetException(new YandexGamesException(json));
+            }
         }
 
-        public static void OnLoadDataComplete(string data)
+        public static void OnLoadDataComplete(string json)
         {
-            _loadDataTask?.TrySetResult(data);
+            try
+            {
+                var callback = JsonUtility.FromJson<KeyDataCallback>(json);
+                if (_loadDataTasks.TryGetValue(callback.key, out var task))
+                    task?.TrySetResult(callback.data);
+            }
+            catch
+            {
+                // Fallback for old format
+                if (_loadDataTasks.Count == 1)
+                {
+                    foreach (var task in _loadDataTasks.Values)
+                        task?.TrySetResult(json);
+                }
+            }
         }
 
-        public static void OnLoadDataError(string error)
+        public static void OnLoadDataError(string json)
         {
-            _loadDataTask?.TrySetException(new YandexGamesException(error));
+            try
+            {
+                var callback = JsonUtility.FromJson<KeyErrorCallback>(json);
+                if (_loadDataTasks.TryGetValue(callback.key, out var task))
+                    task?.TrySetException(new YandexGamesException(callback.error));
+            }
+            catch
+            {
+                // Fallback for old format
+                foreach (var task in _loadDataTasks.Values)
+                    task?.TrySetException(new YandexGamesException(json));
+            }
         }
 
         public static void OnInterstitialAdComplete()
@@ -685,55 +846,167 @@ namespace YandexGames
         }
 
         // Leaderboard callbacks
-        public static void OnSetLeaderboardScoreComplete()
+        public static void OnSetLeaderboardScoreComplete(string leaderboardName)
         {
-            _setLeaderboardScoreTask?.TrySetResult();
+            if (_setLeaderboardScoreTasks.TryGetValue(leaderboardName, out var task))
+                task?.TrySetResult();
         }
 
-        public static void OnSetLeaderboardScoreError(string error)
+        public static void OnSetLeaderboardScoreError(string json)
         {
-            _setLeaderboardScoreTask?.TrySetException(new YandexGamesException(error));
+            try
+            {
+                var callback = JsonUtility.FromJson<LeaderboardErrorCallback>(json);
+                if (_setLeaderboardScoreTasks.TryGetValue(callback.leaderboardName, out var task))
+                    task?.TrySetException(new YandexGamesException(callback.error));
+            }
+            catch
+            {
+                // Fallback for old format
+                foreach (var task in _setLeaderboardScoreTasks.Values)
+                    task?.TrySetException(new YandexGamesException(json));
+            }
         }
 
         public static void OnGetLeaderboardDescriptionComplete(string json)
         {
-            _getLeaderboardDescriptionTask?.TrySetResult(json);
+            try
+            {
+                var callback = JsonUtility.FromJson<LeaderboardDataCallback>(json);
+                if (_getLeaderboardDescriptionTasks.TryGetValue(callback.leaderboardName, out var task))
+                    task?.TrySetResult(callback.data);
+            }
+            catch
+            {
+                // Fallback for old format
+                if (_getLeaderboardDescriptionTasks.Count == 1)
+                {
+                    foreach (var task in _getLeaderboardDescriptionTasks.Values)
+                        task?.TrySetResult(json);
+                }
+            }
         }
 
-        public static void OnGetLeaderboardDescriptionError(string error)
+        public static void OnGetLeaderboardDescriptionError(string json)
         {
-            _getLeaderboardDescriptionTask?.TrySetException(new YandexGamesException(error));
+            try
+            {
+                var callback = JsonUtility.FromJson<LeaderboardErrorCallback>(json);
+                if (_getLeaderboardDescriptionTasks.TryGetValue(callback.leaderboardName, out var task))
+                    task?.TrySetException(new YandexGamesException(callback.error));
+            }
+            catch
+            {
+                // Fallback for old format
+                foreach (var task in _getLeaderboardDescriptionTasks.Values)
+                    task?.TrySetException(new YandexGamesException(json));
+            }
         }
 
         public static void OnGetLeaderboardPlayerEntryComplete(string json)
         {
-            _getLeaderboardPlayerEntryTask?.TrySetResult(json);
+            try
+            {
+                var callback = JsonUtility.FromJson<LeaderboardDataCallback>(json);
+                if (_getLeaderboardPlayerEntryTasks.TryGetValue(callback.leaderboardName, out var task))
+                    task?.TrySetResult(callback.data);
+            }
+            catch
+            {
+                // Fallback for old format
+                if (_getLeaderboardPlayerEntryTasks.Count == 1)
+                {
+                    foreach (var task in _getLeaderboardPlayerEntryTasks.Values)
+                        task?.TrySetResult(json);
+                }
+            }
         }
 
-        public static void OnGetLeaderboardPlayerEntryError(string error)
+        public static void OnGetLeaderboardPlayerEntryError(string json)
         {
-            _getLeaderboardPlayerEntryTask?.TrySetException(new YandexGamesException(error));
+            try
+            {
+                var callback = JsonUtility.FromJson<LeaderboardErrorCallback>(json);
+                if (_getLeaderboardPlayerEntryTasks.TryGetValue(callback.leaderboardName, out var task))
+                    task?.TrySetException(new YandexGamesException(callback.error));
+            }
+            catch
+            {
+                // Fallback for old format
+                foreach (var task in _getLeaderboardPlayerEntryTasks.Values)
+                    task?.TrySetException(new YandexGamesException(json));
+            }
         }
 
         public static void OnGetLeaderboardEntriesComplete(string json)
         {
-            _getLeaderboardEntriesTask?.TrySetResult(json);
+            try
+            {
+                var callback = JsonUtility.FromJson<RequestKeyDataCallback>(json);
+                if (_getLeaderboardEntriesTasks.TryGetValue(callback.requestKey, out var task))
+                    task?.TrySetResult(callback.data);
+            }
+            catch
+            {
+                // Fallback for old format
+                if (_getLeaderboardEntriesTasks.Count == 1)
+                {
+                    foreach (var task in _getLeaderboardEntriesTasks.Values)
+                        task?.TrySetResult(json);
+                }
+            }
         }
 
-        public static void OnGetLeaderboardEntriesError(string error)
+        public static void OnGetLeaderboardEntriesError(string json)
         {
-            _getLeaderboardEntriesTask?.TrySetException(new YandexGamesException(error));
+            try
+            {
+                var callback = JsonUtility.FromJson<RequestKeyErrorCallback>(json);
+                if (_getLeaderboardEntriesTasks.TryGetValue(callback.requestKey, out var task))
+                    task?.TrySetException(new YandexGamesException(callback.error));
+            }
+            catch
+            {
+                // Fallback for old format
+                foreach (var task in _getLeaderboardEntriesTasks.Values)
+                    task?.TrySetException(new YandexGamesException(json));
+            }
         }
 
         // Remote Config callbacks
         public static void OnGetFlagsComplete(string json)
         {
-            _getFlagsTask?.TrySetResult(json);
+            try
+            {
+                var callback = JsonUtility.FromJson<RequestKeyDataCallback>(json);
+                if (_getFlagsTasks.TryGetValue(callback.requestKey, out var task))
+                    task?.TrySetResult(callback.data);
+            }
+            catch
+            {
+                // Fallback for old format
+                if (_getFlagsTasks.Count == 1)
+                {
+                    foreach (var task in _getFlagsTasks.Values)
+                        task?.TrySetResult(json);
+                }
+            }
         }
 
-        public static void OnGetFlagsError(string error)
+        public static void OnGetFlagsError(string json)
         {
-            _getFlagsTask?.TrySetException(new YandexGamesException(error));
+            try
+            {
+                var callback = JsonUtility.FromJson<RequestKeyErrorCallback>(json);
+                if (_getFlagsTasks.TryGetValue(callback.requestKey, out var task))
+                    task?.TrySetException(new YandexGamesException(callback.error));
+            }
+            catch
+            {
+                // Fallback for old format
+                foreach (var task in _getFlagsTasks.Values)
+                    task?.TrySetException(new YandexGamesException(json));
+            }
         }
 
         // Review callbacks

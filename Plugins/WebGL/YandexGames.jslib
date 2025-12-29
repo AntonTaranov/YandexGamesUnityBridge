@@ -47,7 +47,7 @@ var YandexGamesPlugin = {
         var data = UTF8ToString(dataPtr);
         
         if (!window.ysdk) {
-            SendMessage('YandexGamesCallbackReceiver', 'OnSaveDataError', 'Yandex Games SDK not initialized');
+            SendMessage('YandexGamesCallbackReceiver', 'OnSaveDataError', JSON.stringify({key: key, error: 'Yandex Games SDK not initialized'}));
             return;
         }
 
@@ -56,10 +56,10 @@ var YandexGamesPlugin = {
             saveData[key] = data;
             return player.setData(saveData, true);
         }).then(() => {
-            SendMessage('YandexGamesCallbackReceiver', 'OnSaveDataComplete', '');
+            SendMessage('YandexGamesCallbackReceiver', 'OnSaveDataComplete', key);
         }).catch(err => {
             console.error('Failed to save data:', err);
-            SendMessage('YandexGamesCallbackReceiver', 'OnSaveDataError', err.message || 'Unknown error');
+            SendMessage('YandexGamesCallbackReceiver', 'OnSaveDataError', JSON.stringify({key: key, error: err.message || 'Unknown error'}));
         });
     },
 
@@ -68,7 +68,7 @@ var YandexGamesPlugin = {
         var key = UTF8ToString(keyPtr);
         
         if (!window.ysdk) {
-            SendMessage('YandexGamesCallbackReceiver', 'OnLoadDataError', 'Yandex Games SDK not initialized');
+            SendMessage('YandexGamesCallbackReceiver', 'OnLoadDataError', JSON.stringify({key: key, error: 'Yandex Games SDK not initialized'}));
             return;
         }
 
@@ -76,10 +76,10 @@ var YandexGamesPlugin = {
             return player.getData([key]);
         }).then(data => {
             var result = data[key] || null;
-            SendMessage('YandexGamesCallbackReceiver', 'OnLoadDataComplete', result || '');
+            SendMessage('YandexGamesCallbackReceiver', 'OnLoadDataComplete', JSON.stringify({key: key, data: result || ''}));
         }).catch(err => {
             console.error('Failed to load data:', err);
-            SendMessage('YandexGamesCallbackReceiver', 'OnLoadDataError', err.message || 'Unknown error');
+            SendMessage('YandexGamesCallbackReceiver', 'OnLoadDataError', JSON.stringify({key: key, error: err.message || 'Unknown error'}));
         });
     },
 
@@ -132,15 +132,15 @@ var YandexGamesPlugin = {
         var extraData = extraDataPtr ? UTF8ToString(extraDataPtr) : '';
         
         if (!window.ysdk) {
-            SendMessage('YandexGamesCallbackReceiver', 'OnSetLeaderboardScoreError', 'Yandex Games SDK not initialized');
+            SendMessage('YandexGamesCallbackReceiver', 'OnSetLeaderboardScoreError', JSON.stringify({leaderboardName: leaderboardName, error: 'Yandex Games SDK not initialized'}));
             return;
         }
 
         window.ysdk.leaderboards.setScore(leaderboardName, score, extraData).then(() => {
-            SendMessage('YandexGamesCallbackReceiver', 'OnSetLeaderboardScoreComplete', '');
+            SendMessage('YandexGamesCallbackReceiver', 'OnSetLeaderboardScoreComplete', leaderboardName);
         }).catch(err => {
             console.error('Failed to set leaderboard score:', err);
-            SendMessage('YandexGamesCallbackReceiver', 'OnSetLeaderboardScoreError', err.message || 'Unknown error');
+            SendMessage('YandexGamesCallbackReceiver', 'OnSetLeaderboardScoreError', JSON.stringify({leaderboardName: leaderboardName, error: err.message || 'Unknown error'}));
         });
     },
 
@@ -149,15 +149,15 @@ var YandexGamesPlugin = {
         var leaderboardName = UTF8ToString(leaderboardNamePtr);
         
         if (!window.ysdk) {
-            SendMessage('YandexGamesCallbackReceiver', 'OnGetLeaderboardDescriptionError', 'Yandex Games SDK not initialized');
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetLeaderboardDescriptionError', JSON.stringify({leaderboardName: leaderboardName, error: 'Yandex Games SDK not initialized'}));
             return;
         }
 
         window.ysdk.leaderboards.getDescription(leaderboardName).then(description => {
-            SendMessage('YandexGamesCallbackReceiver', 'OnGetLeaderboardDescriptionComplete', JSON.stringify(description));
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetLeaderboardDescriptionComplete', JSON.stringify({leaderboardName: leaderboardName, data: description}));
         }).catch(err => {
             console.error('Failed to get leaderboard description:', err);
-            SendMessage('YandexGamesCallbackReceiver', 'OnGetLeaderboardDescriptionError', err.message || 'Unknown error');
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetLeaderboardDescriptionError', JSON.stringify({leaderboardName: leaderboardName, error: err.message || 'Unknown error'}));
         });
     },
 
@@ -166,50 +166,51 @@ var YandexGamesPlugin = {
         var leaderboardName = UTF8ToString(leaderboardNamePtr);
         
         if (!window.ysdk) {
-            SendMessage('YandexGamesCallbackReceiver', 'OnGetLeaderboardPlayerEntryError', 'Yandex Games SDK not initialized');
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetLeaderboardPlayerEntryError', JSON.stringify({leaderboardName: leaderboardName, error: 'Yandex Games SDK not initialized'}));
             return;
         }
 
         window.ysdk.leaderboards.getPlayerEntry(leaderboardName).then(entry => {
-            SendMessage('YandexGamesCallbackReceiver', 'OnGetLeaderboardPlayerEntryComplete', JSON.stringify(entry));
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetLeaderboardPlayerEntryComplete', JSON.stringify({leaderboardName: leaderboardName, data: entry}));
         }).catch(err => {
             console.error('Failed to get leaderboard player entry:', err);
-            SendMessage('YandexGamesCallbackReceiver', 'OnGetLeaderboardPlayerEntryError', err.message || 'Unknown error');
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetLeaderboardPlayerEntryError', JSON.stringify({leaderboardName: leaderboardName, error: err.message || 'Unknown error'}));
         });
     },
 
     // Get leaderboard entries
     GetLeaderboardEntriesAsyncJS: function(leaderboardNamePtr, optionsJson) {
         var leaderboardName = UTF8ToString(leaderboardNamePtr);
-        var options = optionsJson ? JSON.parse(UTF8ToString(optionsJson)) : {};
+        var optionsStr = optionsJson ? UTF8ToString(optionsJson) : '{}';
+        var options = JSON.parse(optionsStr);
         
         if (!window.ysdk) {
-            SendMessage('YandexGamesCallbackReceiver', 'OnGetLeaderboardEntriesError', 'Yandex Games SDK not initialized');
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetLeaderboardEntriesError', JSON.stringify({requestKey: leaderboardName + '_' + optionsStr, error: 'Yandex Games SDK not initialized'}));
             return;
         }
 
         window.ysdk.leaderboards.getEntries(leaderboardName, options).then(response => {
-            SendMessage('YandexGamesCallbackReceiver', 'OnGetLeaderboardEntriesComplete', JSON.stringify(response));
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetLeaderboardEntriesComplete', JSON.stringify({requestKey: leaderboardName + '_' + optionsStr, data: response}));
         }).catch(err => {
             console.error('Failed to get leaderboard entries:', err);
-            SendMessage('YandexGamesCallbackReceiver', 'OnGetLeaderboardEntriesError', err.message || 'Unknown error');
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetLeaderboardEntriesError', JSON.stringify({requestKey: leaderboardName + '_' + optionsStr, error: err.message || 'Unknown error'}));
         });
     },
 
     // Get remote config flags
     GetFlagsAsyncJS: function(optionsJson) {
-        var options = optionsJson ? JSON.parse(UTF8ToString(optionsJson)) : {};
+        var optionsStr = optionsJson ? UTF8ToString(optionsJson) : '{}';\n        var options = JSON.parse(optionsStr);
         
         if (!window.ysdk) {
-            SendMessage('YandexGamesCallbackReceiver', 'OnGetFlagsError', 'Yandex Games SDK not initialized');
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetFlagsError', JSON.stringify({requestKey: optionsStr, error: 'Yandex Games SDK not initialized'}));
             return;
         }
 
         window.ysdk.getFlags(options).then(flags => {
-            SendMessage('YandexGamesCallbackReceiver', 'OnGetFlagsComplete', JSON.stringify(flags));
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetFlagsComplete', JSON.stringify({requestKey: optionsStr, data: flags}));
         }).catch(err => {
             console.error('Failed to get flags:', err);
-            SendMessage('YandexGamesCallbackReceiver', 'OnGetFlagsError', err.message || 'Unknown error');
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetFlagsError', JSON.stringify({requestKey: optionsStr, error: err.message || 'Unknown error'}));
         });
     },
 
@@ -240,6 +241,102 @@ var YandexGamesPlugin = {
         }).catch(err => {
             console.error('Failed to request review:', err);
             SendMessage('YandexGamesCallbackReceiver', 'OnRequestReviewError', err.message || 'Unknown error');
+        });
+    },
+
+    // Get product catalog
+    GetCatalogAsyncJS: function() {
+        if (!window.ysdk) {
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetCatalogError', 'Yandex Games SDK not initialized');
+            return;
+        }
+
+        // Lazy initialize payments
+        if (!window.yandexPayments) {
+            window.yandexPayments = window.ysdk.getPayments({ signed: false });
+        }
+
+        window.yandexPayments.then(payments => {
+            return payments.getCatalog();
+        }).then(catalog => {
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetCatalogComplete', JSON.stringify(catalog));
+        }).catch(err => {
+            console.error('Failed to get catalog:', err);
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetCatalogError', err.message || 'Unknown error');
+        });
+    },
+
+    // Purchase product
+    PurchaseAsyncJS: function(productIdPtr, developerPayloadPtr) {
+        var productId = UTF8ToString(productIdPtr);
+        var developerPayload = developerPayloadPtr ? UTF8ToString(developerPayloadPtr) : '';
+        
+        if (!window.ysdk) {
+            SendMessage('YandexGamesCallbackReceiver', 'OnPurchaseError', 'Yandex Games SDK not initialized');
+            return;
+        }
+
+        if (!window.yandexPayments) {
+            window.yandexPayments = window.ysdk.getPayments({ signed: false });
+        }
+
+        window.yandexPayments.then(payments => {
+            var options = { id: productId };
+            if (developerPayload) {
+                options.developerPayload = developerPayload;
+            }
+            return payments.purchase(options);
+        }).then(purchase => {
+            SendMessage('YandexGamesCallbackReceiver', 'OnPurchaseComplete', JSON.stringify(purchase));
+        }).catch(err => {
+            console.error('Failed to purchase:', err);
+            SendMessage('YandexGamesCallbackReceiver', 'OnPurchaseError', err.message || 'Unknown error');
+        });
+    },
+
+    // Get unconsumed purchases
+    GetPurchasesAsyncJS: function() {
+        if (!window.ysdk) {
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetPurchasesError', 'Yandex Games SDK not initialized');
+            return;
+        }
+
+        if (!window.yandexPayments) {
+            window.yandexPayments = window.ysdk.getPayments({ signed: false });
+        }
+
+        window.yandexPayments.then(payments => {
+            return payments.getPurchases();
+        }).then(purchasesResponse => {
+            // Extract purchases array from response
+            var purchases = purchasesResponse.purchases || [];
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetPurchasesComplete', JSON.stringify(purchases));
+        }).catch(err => {
+            console.error('Failed to get purchases:', err);
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetPurchasesError', err.message || 'Unknown error');
+        });
+    },
+
+    // Consume purchase
+    ConsumePurchaseAsyncJS: function(tokenPtr) {
+        var purchaseToken = UTF8ToString(tokenPtr);
+        
+        if (!window.ysdk) {
+            SendMessage('YandexGamesCallbackReceiver', 'OnConsumePurchaseError', 'Yandex Games SDK not initialized');
+            return;
+        }
+
+        if (!window.yandexPayments) {
+            window.yandexPayments = window.ysdk.getPayments({ signed: false });
+        }
+
+        window.yandexPayments.then(payments => {
+            return payments.consumePurchase(purchaseToken);
+        }).then(() => {
+            SendMessage('YandexGamesCallbackReceiver', 'OnConsumePurchaseComplete', '');
+        }).catch(err => {
+            console.error('Failed to consume purchase:', err);
+            SendMessage('YandexGamesCallbackReceiver', 'OnConsumePurchaseError', err.message || 'Unknown error');
         });
     }
 };

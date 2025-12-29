@@ -1,8 +1,8 @@
 {
   "name": "com.yandex.games",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "displayName": "Yandex Games",
-  "description": "Unity plugin for Yandex Games integration with minimal usage pattern. Provides auto-initialization, player data retrieval, cloud storage, and advertisement functionality.",
+  "description": "Unity plugin for Yandex Games integration with minimal usage pattern. Provides auto-initialization, player data retrieval, cloud storage, advertisements, leaderboards, and in-app purchases.",
   "unity": "2022.3",
   "unityRelease": "0f1",
   "keywords": [
@@ -11,7 +11,10 @@
     "webgl",
     "ads",
     "cloud",
-    "player"
+    "player",
+    "payments",
+    "iap",
+    "leaderboards"
   ],
   "author": {
     "name": "Yandex Games",

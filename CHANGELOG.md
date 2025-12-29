@@ -5,6 +5,55 @@ All notable changes to the Yandex Games Unity Plugin will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2025-12-29
+
+### Added
+- **In-App Purchases API**: Full support for Yandex Games payment system
+  - `YandexGames.Payments.GetCatalogAsync()`: Retrieve product catalog with prices and images
+  - `YandexGames.Payments.PurchaseAsync(productId, developerPayload)`: Initiate purchase flow with optional custom data
+  - `YandexGames.Payments.GetPurchasesAsync()`: Get unconsumed purchases (REQUIRED for Yandex moderation)
+  - `YandexGames.Payments.ConsumePurchaseAsync(purchaseToken)`: Mark purchase as consumed
+  - `YandexGames.Payments.HasPurchase(productId)`: Convenience method for checking permanent purchases
+- **Payment Data Models**: 4 new serializable classes
+  - `YandexProduct`: Product catalog entry with pricing, title, description, image URI
+  - `YandexPurchase`: Purchase transaction with token, payload, and optional signature
+  - `YandexPaymentOptions`: Configuration for signed mode (server-side validation)
+  - `CurrencyIconSize`: Enum for currency icon display sizes
+- **JavaScript Bridge**: Extended `YandexGames.jslib` with 4 payment functions
+  - `GetCatalogAsyncJS()`: Lazy initialization of payments API, catalog retrieval
+  - `PurchaseAsyncJS(productId, developerPayload)`: Purchase flow with UTF8ToString parameter handling
+  - `GetPurchasesAsyncJS()`: Unconsumed purchase list retrieval
+  - `ConsumePurchaseAsyncJS(purchaseToken)`: Purchase consumption
+- **Editor Mock Data**: Testing support for offline development
+  - `MockCatalog`: 3 sample products (gold100, gold500, disable_ads)
+  - `MockPurchases`: In-memory purchase list for editor testing
+- **Documentation**: Complete payment integration guide
+  - `Documentation~/Payments.md`: API reference, best practices, troubleshooting
+  - Quick start examples for catalog display, purchase handling, unconsumed purchase recovery
+  - Permanent vs consumable purchase patterns
+
+### Technical Details
+- All payment operations use UniTask for consistency with existing APIs
+- WebGL-only implementation (editor returns mock data for testing)
+- Lazy initialization pattern for `window.yandexPayments` (optimizes performance)
+- Full error handling with descriptive `YandexGamesException` messages
+- Parameter validation (null/empty checks, product existence validation)
+- Unconsumed purchase recovery required for Yandex moderation approval
+- Signature support for server-side validation (optional, advanced feature)
+- Currency icon CDN integration via `GetPriceCurrencyImage()` method
+
+### Changed
+- Extended `YandexGamesCallbackReceiver` with 8 new payment callback methods
+- Added `Payments` property to main `YandexGames` class for singleton access
+- Updated package description to include in-app purchases
+- Added new keywords: "payments", "iap", "leaderboards" to package.json
+- Bumped package version to 1.4.0
+
+### Security
+- Purchase signature field for HMAC-SHA256 validation (server-side)
+- Developer payload support for custom transaction metadata
+- Warning logs to remind developers to save player data before consuming purchases
+
 ## [1.2.0] - 2025-01-XX
 
 ### Added

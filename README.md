@@ -1,6 +1,6 @@
 # Yandex Games Unity Plugin
 
-A Unity plugin for Yandex Games integration with minimal usage pattern. Provides auto-initialization, player data retrieval, cloud storage, and advertisement functionality using UniTask for async operations.
+A Unity plugin for Yandex Games integration with minimal usage pattern. Provides auto-initialization, player data retrieval, cloud storage, advertisements, leaderboards, and in-app purchases using UniTask for async operations.
 
 ## Features
 
@@ -9,6 +9,7 @@ A Unity plugin for Yandex Games integration with minimal usage pattern. Provides
 - **Cloud Storage**: Save and load game data to Yandex Games cloud
 - **Advertisements**: Show interstitial and rewarded video ads
 - **Leaderboards**: Submit scores, retrieve rankings, and display player positions
+- **In-App Purchases**: Display product catalog, process payments, and handle unconsumed purchases
 - **Remote Configuration**: Feature flags and A/B testing support
 - **Game Review**: Request player feedback and ratings
 - **UniTask Integration**: All async operations use UniTask for better performance
@@ -114,6 +115,34 @@ foreach (var entry in response.entries)
     Debug.Log($"#{entry.rank + 1}: {entry.player.publicName} - {entry.formattedScore}");
 }
 ```
+
+### In-App Purchases
+
+- `YandexGames.Payments.GetCatalogAsync()` - Get product catalog with prices
+- `YandexGames.Payments.PurchaseAsync(productId, developerPayload)` - Initiate purchase flow
+- `YandexGames.Payments.GetPurchasesAsync()` - Get unconsumed purchases (required on startup)
+- `YandexGames.Payments.ConsumePurchaseAsync(purchaseToken)` - Mark purchase as consumed
+- `YandexGames.Payments.HasPurchase(productId)` - Check for permanent purchase
+
+**Example:**
+```csharp
+// Display shop
+var products = await YandexGames.Payments.GetCatalogAsync();
+foreach (var product in products)
+{
+    Debug.Log($"{product.Title}: {product.Price}");
+}
+
+// Process purchase
+var purchase = await YandexGames.Payments.PurchaseAsync("gold500");
+await PlayerData.AddGold(500);
+await YandexGames.Payments.ConsumePurchaseAsync(purchase.PurchaseToken);
+
+// Check for permanent purchase
+bool hasNoAds = await YandexGames.Payments.HasPurchase("disable_ads");
+```
+
+**📖 See [Payments Documentation](Documentation~/Payments.md) for complete guide with best practices.**
 
 ### Remote Configuration
 

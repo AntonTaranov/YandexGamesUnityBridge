@@ -35,24 +35,24 @@ namespace YandexGames
             YandexGames.OnPlayerDataError(error);
         }
 
-        public void OnSaveDataComplete()
+        public void OnSaveDataComplete(string key)
         {
-            YandexGames.OnSaveDataComplete();
+            YandexGames.OnSaveDataComplete(key);
         }
 
-        public void OnSaveDataError(string error)
+        public void OnSaveDataError(string json)
         {
-            YandexGames.OnSaveDataError(error);
+            YandexGames.OnSaveDataError(json);
         }
 
-        public void OnLoadDataComplete(string data)
+        public void OnLoadDataComplete(string json)
         {
-            YandexGames.OnLoadDataComplete(data);
+            YandexGames.OnLoadDataComplete(json);
         }
 
-        public void OnLoadDataError(string error)
+        public void OnLoadDataError(string json)
         {
-            YandexGames.OnLoadDataError(error);
+            YandexGames.OnLoadDataError(json);
         }
 
         public void OnInterstitialAdComplete()
@@ -76,14 +76,14 @@ namespace YandexGames
         }
 
         // Leaderboards callbacks
-        public void OnSetLeaderboardScoreComplete()
+        public void OnSetLeaderboardScoreComplete(string leaderboardName)
         {
-            YandexGames.OnSetLeaderboardScoreComplete();
+            YandexGames.OnSetLeaderboardScoreComplete(leaderboardName);
         }
 
-        public void OnSetLeaderboardScoreError(string error)
+        public void OnSetLeaderboardScoreError(string json)
         {
-            YandexGames.OnSetLeaderboardScoreError(error);
+            YandexGames.OnSetLeaderboardScoreError(json);
         }
 
         public void OnGetLeaderboardDescriptionComplete(string json)
@@ -91,9 +91,9 @@ namespace YandexGames
             YandexGames.OnGetLeaderboardDescriptionComplete(json);
         }
 
-        public void OnGetLeaderboardDescriptionError(string error)
+        public void OnGetLeaderboardDescriptionError(string json)
         {
-            YandexGames.OnGetLeaderboardDescriptionError(error);
+            YandexGames.OnGetLeaderboardDescriptionError(json);
         }
 
         public void OnGetLeaderboardPlayerEntryComplete(string json)
@@ -101,9 +101,9 @@ namespace YandexGames
             YandexGames.OnGetLeaderboardPlayerEntryComplete(json);
         }
 
-        public void OnGetLeaderboardPlayerEntryError(string error)
+        public void OnGetLeaderboardPlayerEntryError(string json)
         {
-            YandexGames.OnGetLeaderboardPlayerEntryError(error);
+            YandexGames.OnGetLeaderboardPlayerEntryError(json);
         }
 
         public void OnGetLeaderboardEntriesComplete(string json)
@@ -111,9 +111,9 @@ namespace YandexGames
             YandexGames.OnGetLeaderboardEntriesComplete(json);
         }
 
-        public void OnGetLeaderboardEntriesError(string error)
+        public void OnGetLeaderboardEntriesError(string json)
         {
-            YandexGames.OnGetLeaderboardEntriesError(error);
+            YandexGames.OnGetLeaderboardEntriesError(json);
         }
 
         // Remote Config callbacks
@@ -122,9 +122,9 @@ namespace YandexGames
             YandexGames.OnGetFlagsComplete(json);
         }
 
-        public void OnGetFlagsError(string error)
+        public void OnGetFlagsError(string json)
         {
-            YandexGames.OnGetFlagsError(error);
+            YandexGames.OnGetFlagsError(json);
         }
 
         // Review callbacks
@@ -146,6 +146,47 @@ namespace YandexGames
         public void OnRequestReviewError(string error)
         {
             YandexGames.OnRequestReviewError(error);
+        }
+
+        // Payment callbacks
+        public void OnGetCatalogComplete(string json)
+        {
+            YandexGamesPayments.OnGetCatalogComplete(json);
+        }
+
+        public void OnGetCatalogError(string error)
+        {
+            YandexGamesPayments.OnGetCatalogError(error);
+        }
+
+        public void OnPurchaseComplete(string json)
+        {
+            YandexGamesPayments.OnPurchaseComplete(json);
+        }
+
+        public void OnPurchaseError(string error)
+        {
+            YandexGamesPayments.OnPurchaseError(error);
+        }
+
+        public void OnGetPurchasesComplete(string json)
+        {
+            YandexGamesPayments.OnGetPurchasesComplete(json);
+        }
+
+        public void OnGetPurchasesError(string error)
+        {
+            YandexGamesPayments.OnGetPurchasesError(error);
+        }
+
+        public void OnConsumePurchaseComplete(string empty)
+        {
+            YandexGamesPayments.OnConsumePurchaseComplete(empty);
+        }
+
+        public void OnConsumePurchaseError(string error)
+        {
+            YandexGamesPayments.OnConsumePurchaseError(error);
         }
     }
 }
