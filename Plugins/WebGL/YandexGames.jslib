@@ -309,9 +309,7 @@ var YandexGamesPlugin = {
         window.yandexPayments.then(payments => {
             return payments.getPurchases();
         }).then(purchasesResponse => {
-            // Extract purchases array from response
-            var purchases = purchasesResponse.purchases || [];
-            SendMessage('YandexGamesCallbackReceiver', 'OnGetPurchasesComplete', JSON.stringify(purchases));
+            SendMessage('YandexGamesCallbackReceiver', 'OnGetPurchasesComplete', JSON.stringify(purchasesResponse));
         }).catch(err => {
             console.error('Failed to get purchases:', err);
             SendMessage('YandexGamesCallbackReceiver', 'OnGetPurchasesError', err.message || 'Unknown error');
