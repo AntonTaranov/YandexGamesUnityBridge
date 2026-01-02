@@ -1092,6 +1092,148 @@ namespace YandexGames
 
         [DllImport("__Internal")]
         private static extern void RequestReviewAsyncJS();
+
+        // Loading and Gameplay API bridge declarations (T006, T013)
+        [DllImport("__Internal")]
+        private static extern void LoadingAPIReady();
+        
+        [DllImport("__Internal")]
+        private static extern void GameplayAPIStart();
+        
+        [DllImport("__Internal")]
+        private static extern void GameplayAPIStop();
 #endif
+
+        /// <summary>
+        /// Loading lifecycle management for Yandex Games platform.
+        /// Call LoadingAPI.Ready() when game has finished loading all resources 
+        /// and is ready for user interaction. This enables accurate loading 
+        /// performance metrics in Yandex DevTools.
+        /// </summary>
+        /// <remarks>
+        /// Only functional in WebGL builds on Yandex Games platform.
+        /// In Unity Editor, logs mock call for testing purposes.
+        /// Should be called once after initial game load, not on every scene load.
+        /// </remarks>
+        public static class LoadingAPI
+        {
+            /// <summary>
+            /// Signal that game has finished loading and is ready for interaction.
+            /// Call this when all resources are loaded, UI is interactive, 
+            /// and no loading screens are visible.
+            /// </summary>
+            /// <example>
+            /// <code>
+            /// async void Start()
+            /// {
+            ///     await LoadAllGameAssets();
+            ///     InitializeGameSystems();
+            ///     
+            ///     // Signal that game is ready
+            ///     YandexGames.LoadingAPI.Ready();
+            /// }
+            /// </code>
+            /// </example>
+            /// <remarks>
+            /// WebGL only. Safe to call in editor (logs mock message).
+            /// Calling multiple times is safe but logged as warning.
+            /// Must be called after YandexGames initialization completes.
+            /// </remarks>
+            public static void Ready()
+            {
+#if UNITY_WEBGL && !UNITY_EDITOR
+                LoadingAPIReady();
+#else
+                Debug.Log("[YandexGames] LoadingAPI.Ready() called (mock - WebGL only)");
+#endif
+            }
+        }
+
+        /// <summary>
+        /// Gameplay lifecycle management for Yandex Games platform.
+        /// Use GameplayAPI.Start() when active gameplay begins and GameplayAPI.Stop() 
+        /// when gameplay is paused/interrupted. This helps Yandex optimize ad timing 
+        /// and pause background processes during active gameplay.
+        /// </summary>
+        /// <remarks>
+        /// Only functional in WebGL builds on Yandex Games platform.
+        /// In Unity Editor, logs mock calls for testing purposes.
+        /// These events help Yandex SDK make better decisions about when to show ads 
+        /// and when to pause/resume background SDK operations.
+        /// </remarks>
+        public static class GameplayAPI
+        {
+            /// <summary>
+            /// Signal that active gameplay has started.
+            /// Call this when player begins playing (e.g., game unpauses, level starts, 
+            /// match begins). Do not call during menus, cutscenes, or loading screens.
+            /// </summary>
+            /// <example>
+            /// <code>
+            /// void StartLevel()
+            /// {
+            ///     // Game state transitions to active gameplay
+            ///     Time.timeScale = 1f;
+            ///     playerController.enabled = true;
+            ///     
+            ///     // Signal gameplay start to Yandex
+            ///     YandexGames.GameplayAPI.Start();
+            /// }
+            /// </code>
+            /// </example>
+            /// <remarks>
+            /// WebGL only. Safe to call in editor (logs mock message).
+            /// Calling multiple times is safe - SDK tracks state internally.
+            /// Should be balanced with corresponding GameplayAPI.Stop() calls.
+            /// </remarks>
+            public static void Start()
+            {
+#if UNITY_WEBGL && !UNITY_EDITOR
+                GameplayAPIStart();
+#else
+                Debug.Log("[YandexGames] GameplayAPI.Start() called (mock - WebGL only)");
+#endif
+            }
+
+            /// <summary>
+            /// Signal that active gameplay has stopped/paused.
+            /// Call this when gameplay is interrupted (e.g., game pauses, level ends, 
+            /// player opens menu). Call before showing interstitial ads.
+            /// </summary>
+            /// <example>
+            /// <code>
+            /// void PauseGame()
+            /// {
+            ///     // Signal gameplay stop before pausing
+            ///     YandexGames.GameplayAPI.Stop();
+            ///     
+            ///     // Pause game state
+            ///     Time.timeScale = 0f;
+            ///     playerController.enabled = false;
+            ///     pauseMenu.Show();
+            /// }
+            /// 
+            /// async void ShowInterstitialAd()
+            /// {
+            ///     // Always stop gameplay before ads
+            ///     YandexGames.GameplayAPI.Stop();
+            ///     await YandexGames.InterstitialAdAsync();
+            /// }
+            /// </code>
+            /// </example>
+            /// <remarks>
+            /// WebGL only. Safe to call in editor (logs mock message).
+            /// Calling when already stopped is safe (idempotent).
+            /// Especially important to call before showing interstitial ads.
+            /// </remarks>
+            public static void Stop()
+            {
+#if UNITY_WEBGL && !UNITY_EDITOR
+                GameplayAPIStop();
+#else
+                Debug.Log("[YandexGames] GameplayAPI.Stop() called (mock - WebGL only)");
+#endif
+            }
+        }
     }
 }

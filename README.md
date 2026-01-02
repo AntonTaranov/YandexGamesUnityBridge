@@ -5,6 +5,7 @@ A Unity plugin for Yandex Games integration with minimal usage pattern. Provides
 ## Features
 
 - **Zero Configuration**: Automatically initializes when your game starts
+- **Loading & Gameplay Lifecycle**: Signal game loading completion and gameplay state for analytics and ad optimization
 - **Player Data**: Get player information (name, avatar, language, device type)
 - **Cloud Storage**: Save and load game data to Yandex Games cloud
 - **Advertisements**: Show interstitial and rewarded video ads
@@ -55,6 +56,21 @@ public class GameManager : MonoBehaviour
         {
             // Restore game state
         }
+        
+        // Signal that game has finished loading
+        YandexGames.YandexGames.LoadingAPI.Ready();
+    }
+    
+    public void StartLevel()
+    {
+        // Signal gameplay has started
+        YandexGames.YandexGames.GameplayAPI.Start();
+    }
+    
+    public void PauseGame()
+    {
+        // Signal gameplay has stopped
+        YandexGames.YandexGames.GameplayAPI.Stop();
     }
     
     public async void SaveGame()
@@ -65,17 +81,23 @@ public class GameManager : MonoBehaviour
     
     public async void ShowAd()
     {
+        // Stop gameplay before showing ad
+        YandexGames.YandexGames.GameplayAPI.Stop();
         await YandexGames.YandexGames.ShowInterstitialAdAsync();
+        // Resume after ad
+        YandexGames.YandexGames.GameplayAPI.Start();
     }
     
     public async void ShowRewardedAd()
     {
+        YandexGames.YandexGames.GameplayAPI.Stop();
         await YandexGames.YandexGames.ShowRewardedAdAsync(rewarded => {
             if (rewarded) {
                 // Give player reward
                 GivePlayerCoins(100);
             }
         });
+        YandexGames.YandexGames.GameplayAPI.Start();
     }
 }
 ```
@@ -181,6 +203,141 @@ else
     Debug.Log($"Cannot review: {reason}"); // NO_AUTH, GAME_RATED, etc.
 }
 ```
+
+**Note**: The static class `YandexGames` is inside the `YandexGames` namespace, so you need to use `YandexGames.YandexGames` to access the methods.
+
+### Loading and Gameplay Lifecycle
+
+The plugin provides APIs to signal key game lifecycle events to Yandex Games platform for accurate performance metrics and ad optimization.
+
+#### LoadingAPI.Ready()
+
+Signal that your game has finished loading and is ready for player interaction. This enables Yandex to track loading performance metrics in DevTools.
+
+**When to call:**
+- After all initial resources are loaded
+- When UI is interactive
+- After no loading screens are visible
+- Called once during initial game load (not on every scene change)
+
+**Example:**
+```csharp
+using YandexGames;
+using Cysharp.Threading.Tasks;
+
+public class GameBootstrap : MonoBehaviour
+{
+    private async void Start()
+    {
+        // Wait for plugin initialization
+        await UniTask.WaitUntil(() => YandexGames.IsInitialized);
+        
+        // Load game resources
+        await LoadAllGameAssets();
+        await InitializeGameSystems();
+        
+        // Signal that game is ready for interaction
+        YandexGames.LoadingAPI.Ready();
+        
+        // Now show main menu
+        mainMenuUI.SetActive(true);
+    }
+}
+```
+
+**Platform Support:** WebGL only. Safe to call in Unity Editor (logs mock message).
+
+#### GameplayAPI.Start() and GameplayAPI.Stop()
+
+Signal when active gameplay starts and stops. This helps Yandex optimize ad timing and pause background SDK operations during gameplay.
+
+**When to call Start():**
+- Level/match begins
+- Game unpauses
+- Player gains control
+- NOT during menus, cutscenes, or loading screens
+
+**When to call Stop():**
+- Level/match ends
+- Game pauses
+- Player opens menu
+- **Always before showing interstitial ads**
+
+**Example: Basic Usage**
+```csharp
+public class LevelManager : MonoBehaviour
+{
+    public void StartLevel()
+    {
+        // Unpause game
+        Time.timeScale = 1f;
+        playerController.enabled = true;
+        
+        // Signal gameplay start
+        YandexGames.GameplayAPI.Start();
+    }
+    
+    public void PauseGame()
+    {
+        // Signal gameplay stop
+        YandexGames.GameplayAPI.Stop();
+        
+        // Pause game
+        Time.timeScale = 0f;
+        playerController.enabled = false;
+        pauseMenu.Show();
+    }
+    
+    public void ResumeGame()
+    {
+        pauseMenu.Hide();
+        Time.timeScale = 1f;
+        playerController.enabled = true;
+        
+        // Signal gameplay resumed
+        YandexGames.GameplayAPI.Start();
+    }
+}
+```
+
+**Example: Integration with Ads**
+```csharp
+public class AdManager : MonoBehaviour
+{
+    public async UniTask ShowInterstitialAd()
+    {
+        // IMPORTANT: Always stop gameplay before ads
+        YandexGames.GameplayAPI.Stop();
+        
+        // Show ad
+        await YandexGames.ShowInterstitialAdAsync();
+        
+        // Resume gameplay after ad closes
+        YandexGames.GameplayAPI.Start();
+    }
+    
+    public async UniTask ShowRewardedAd(Action onRewarded)
+    {
+        // Stop gameplay before ad
+        YandexGames.GameplayAPI.Stop();
+        
+        await YandexGames.ShowRewardedAdAsync(rewarded => 
+        {
+            if (rewarded)
+            {
+                onRewarded?.Invoke();
+            }
+        });
+        
+        // Resume gameplay
+        YandexGames.GameplayAPI.Start();
+    }
+}
+```
+
+**Platform Support:** WebGL only. Safe to call in Unity Editor (logs mock messages).
+
+**Idempotency:** Both `Start()` and `Stop()` are idempotent - calling them multiple times is safe and won't cause errors. The SDK tracks state internally.
 
 **Note**: The static class `YandexGames` is inside the `YandexGames` namespace, so you need to use `YandexGames.YandexGames` to access the methods.
 

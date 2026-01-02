@@ -1,4 +1,8 @@
 var YandexGamesPlugin = {
+    // State tracking for idempotency (T001)
+    _gameReady: false,
+    _gameplayActive: false,
+    
     // Initialize Yandex Games SDK
     YandexGamesInitialize: function() {
         if (typeof YaGames === 'undefined') {
@@ -337,6 +341,66 @@ var YandexGamesPlugin = {
             console.error('Failed to consume purchase:', err);
             SendMessage('YandexGamesCallbackReceiver', 'OnConsumePurchaseError', err.message || 'Unknown error');
         });
+    },
+
+    // T002: LoadingAPI.ready() - Signal game loading complete
+    LoadingAPIReady: function() {
+        if (this._gameReady) {
+            console.warn('[YandexGames] LoadingAPI.ready() already called - ignoring duplicate call');
+            return;
+        }
+        
+        if (window.ysdk && window.ysdk.features && window.ysdk.features.LoadingAPI) {
+            try {
+                window.ysdk.features.LoadingAPI.ready();
+                this._gameReady = true;
+                console.log('[YandexGames] LoadingAPI.ready() called successfully');
+            } catch (error) {
+                console.error('[YandexGames] Error calling LoadingAPI.ready():', error);
+            }
+        } else {
+            console.warn('[YandexGames] LoadingAPI not available - SDK may not be initialized');
+        }
+    },
+
+    // T003: GameplayAPI.start() - Signal gameplay started/resumed
+    GameplayAPIStart: function() {
+        if (this._gameplayActive) {
+            console.log('[YandexGames] GameplayAPI.start() already active - ignoring duplicate call');
+            return;
+        }
+        
+        if (window.ysdk && window.ysdk.features && window.ysdk.features.GameplayAPI) {
+            try {
+                window.ysdk.features.GameplayAPI.start();
+                this._gameplayActive = true;
+                console.log('[YandexGames] GameplayAPI.start() called successfully');
+            } catch (error) {
+                console.error('[YandexGames] Error calling GameplayAPI.start():', error);
+            }
+        } else {
+            console.warn('[YandexGames] GameplayAPI not available - SDK may not be initialized');
+        }
+    },
+
+    // T004: GameplayAPI.stop() - Signal gameplay stopped/paused
+    GameplayAPIStop: function() {
+        if (!this._gameplayActive) {
+            console.log('[YandexGames] GameplayAPI.stop() already stopped - ignoring duplicate call');
+            return;
+        }
+        
+        if (window.ysdk && window.ysdk.features && window.ysdk.features.GameplayAPI) {
+            try {
+                window.ysdk.features.GameplayAPI.stop();
+                this._gameplayActive = false;
+                console.log('[YandexGames] GameplayAPI.stop() called successfully');
+            } catch (error) {
+                console.error('[YandexGames] Error calling GameplayAPI.stop():', error);
+            }
+        } else {
+            console.warn('[YandexGames] GameplayAPI not available - SDK may not be initialized');
+        }
     }
 };
 
