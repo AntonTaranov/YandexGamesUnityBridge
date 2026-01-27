@@ -204,20 +204,35 @@ var YandexGamesPlugin = {
     // Get remote config flags
     GetFlagsAsyncJS: function(optionsJson) {
         var optionsStr = optionsJson ? UTF8ToString(optionsJson) : '{}';
-        var options = JSON.parse(optionsStr);
-        
+               
         if (!window.ysdk) {
             SendMessage('YandexGamesCallbackReceiver', 'OnGetFlagsError', JSON.stringify({requestKey: optionsStr, error: 'Yandex Games SDK not initialized'}));
             return;
         }
 
-        window.ysdk.getFlags(options).then(flags => {
+        window.ysdk.getFlags().then(flags => {
             SendMessage('YandexGamesCallbackReceiver', 'OnGetFlagsComplete', JSON.stringify({requestKey: optionsStr, data: flags}));
         }).catch(err => {
             console.error('Failed to get flags:', err);
             SendMessage('YandexGamesCallbackReceiver', 'OnGetFlagsError', JSON.stringify({requestKey: optionsStr, error: err.message || 'Unknown error'}));
         });
     },
+//    GetFlagsAsyncJS: function(optionsJson) {
+//        var optionsStr = optionsJson ? UTF8ToString(optionsJson) : '{}';
+//        var options = JSON.parse(optionsStr);
+//        
+//        if (!window.ysdk) {
+//            SendMessage('YandexGamesCallbackReceiver', 'OnGetFlagsError', JSON.stringify({requestKey: optionsStr, error: 'Yandex Games SDK not initialized'}));
+//            return;
+//        }
+//
+//        window.ysdk.getFlags(options).then(flags => {
+//            SendMessage('YandexGamesCallbackReceiver', 'OnGetFlagsComplete', JSON.stringify({requestKey: optionsStr, data: flags}));
+//        }).catch(err => {
+//            console.error('Failed to get flags:', err);
+ //           SendMessage('YandexGamesCallbackReceiver', 'OnGetFlagsError', JSON.stringify({requestKey: optionsStr, error: err.message || 'Unknown error'}));
+ //       });
+ //   },
 
     // Check if review is available
     CanReviewAsyncJS: function() {
