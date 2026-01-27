@@ -210,8 +210,9 @@ var YandexGamesPlugin = {
             SendMessage('YandexGamesCallbackReceiver', 'OnGetFlagsError', JSON.stringify({requestKey: optionsStr, error: 'Yandex Games SDK not initialized'}));
             return;
         }
-        var flagsStr = JSON.stringify(flags);
+        
         window.ysdk.getFlags().then(flags => {
+            var flagsStr = JSON.stringify(flags);
             SendMessage('YandexGamesCallbackReceiver', 'OnGetFlagsComplete', JSON.stringify({requestKey: optionsStr, data: flagsStr}));
         }).catch(err => {
             console.error('Failed to get flags:', err);
